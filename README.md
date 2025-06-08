@@ -29,17 +29,23 @@ Main stack:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/iot-stream-simulator.git
-cd iot-stream-simulator
+git clone https://github.com/your-username/iot-data-platform-simulator.git
+cd iot-data-platform-simulator
 ```
 
-### 2. Launch with Docker Compose
+### 2. Build
 
 ```bash
-docker compose up --build
+make build
 ```
 
-### 3. Access the services
+### 3. Launch
+
+```bash
+make up
+```
+
+### 4. Access the services
 
 MinIO Console: http://localhost:9001
 User: minioadmin | Password: minioadmin
@@ -51,7 +57,7 @@ User: minioadmin | Password: minioadmin
 ## Project Structure
 
 ```graphql
-iot-stream-simulator/
+iot-data-platform-simulator/
 │
 ├── docker-compose.yml
 │
@@ -63,6 +69,40 @@ iot-stream-simulator/
 │   ├── main.py               # Reads from Kafka, writes to Delta Lake
 │   └── Dockerfile
 ```
+
+---
+
+<br>
+
+## Makefile Commands
+
+This project includes a `Makefile` to simplify common Docker Compose tasks.
+
+### Available Commands
+
+| Command        | Description                                  |
+| -------------- | -------------------------------------------- |
+| `make up`      | Start all services in detached mode          |
+| `make down`    | Stop all running containers                  |
+| `make build`   | Build/rebuild all services                   |
+| `make logs`    | Tail logs from all services                  |
+| `make restart` | Restart the environment (`down` + `up`)      |
+| `make clean`   | Stop everything and remove volumes + orphans |
+
+### Typical Workflow
+
+```bash
+make build      # Build containers (only needed after code changes)
+make up         # Start the environment
+make logs       # See what’s happening
+make clean      # Tear down everything and clean volumes
+```
+
+### Good to Know
+
+- `make clean` will **delete all volumes**, including MinIO data.
+- `make restart` is useful for a quick refresh without losing volumes.
+- The `Makefile` assumes Docker Compose v2 (`docker compose`, not `docker-compose`).
 
 ---
 

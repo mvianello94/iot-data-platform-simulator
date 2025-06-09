@@ -127,6 +127,18 @@ Bucket: iot-data
 - API Endpoint: http://localhost:9000
 - UI: http://localhost:9001
 
+For development purpose use the default admin user:
+Username: minioadmin
+Password: minioadmin
+
+### Apache Superset
+
+- UI: http://localhost:8088
+
+For development purpose use the default admin user created using `docker-compose.yml`:
+Username: admin
+Password: admin123!
+
 <br>
 
 ## License

@@ -9,18 +9,14 @@ Main stack:
 - **MinIO** as an S3-compatible data lake with Delta Lake
 - **Python** everywhere for simplicity and flexibility
 
----
-
 <br>
 
 ## Architecture
 
-1. IoT Simulator (Python)
-1. Kafka
-1. Spark Job (Spark Structured Streaming)
+1. Devices Simulator (Python)
+1. Kafka (Alternatively Amazon Kinesis Stream can be used: https://spark.apache.org/docs/latest/streaming-kinesis-integration.html)
+1. Spark Stream Processor (Spark Structured Streaming)
 1. Delta Lake (MinIO, compatible with Amazon S3)
-
----
 
 <br>
 
@@ -50,8 +46,6 @@ make up
 MinIO Console: http://localhost:9001
 User: minioadmin | Password: minioadmin
 
----
-
 <br>
 
 ## Project Structure
@@ -61,16 +55,14 @@ iot-data-platform-simulator/
 │
 ├── docker-compose.yml
 │
-├── simulator/                # IoT event generator
+├── devices-simulator/        # IoT event generator
 │   ├── generator.py          # Sends random JSON events to Kafka
 │   └── Dockerfile
 │
-├── spark-app/                # Spark Structured Streaming job
+├── spark-stream-processor/   # Spark Structured Streaming job
 │   ├── main.py               # Reads from Kafka, writes to Delta Lake
 │   └── Dockerfile
 ```
-
----
 
 <br>
 
@@ -80,14 +72,16 @@ This project includes a `Makefile` to simplify common Docker Compose tasks.
 
 ### Available Commands
 
-| Command        | Description                                  |
-| -------------- | -------------------------------------------- |
-| `make up`      | Start all services in detached mode          |
-| `make down`    | Stop all running containers                  |
-| `make build`   | Build/rebuild all services                   |
-| `make logs`    | Tail logs from all services                  |
-| `make restart` | Restart the environment (`down` + `up`)      |
-| `make clean`   | Stop everything and remove volumes + orphans |
+| Command                          | Description                                       |
+| -------------------------------- | ------------------------------------------------- |
+| `make up`                        | Start all services in detached mode               |
+| `make down`                      | Stop all running containers                       |
+| `make build`                     | Build/rebuild all services                        |
+| `make rebuild`                   | Rebuild and start all services + (`build` + `up`) |
+| `make logs`                      | Tail logs from all services                       |
+| `make logs SERVICE=service_name` | Tail logs from the specified service              |
+| `make restart`                   | Restart the environment (`down` + `up`)           |
+| `make clean`                     | Stop everything and remove volumes + orphans      |
 
 ### Typical Workflow
 
@@ -103,8 +97,6 @@ make clean      # Tear down everything and clean volumes
 - `make clean` will **delete all volumes**, including MinIO data.
 - `make restart` is useful for a quick refresh without losing volumes.
 - The `Makefile` assumes Docker Compose v2 (`docker compose`, not `docker-compose`).
-
----
 
 <br>
 
@@ -134,8 +126,6 @@ Bucket: iot-data
 
 Endpoint: http://localhost:9000
 
----
-
 <br>
 
 ## Live test
@@ -157,18 +147,14 @@ docker exec -it spark-job bash
 spark-sql -e "SELECT * FROM delta.`s3a://iot-data/events` LIMIT 10"
 ```
 
----
-
 <br>
 
 ## License
 
 MIT License — use it, fork it, break it, improve it.
 
----
-
 <br>
 
-## 👨Author
+## Author
 
 Manuel Vianello – Cloud Architect, Software Engineer, creative problem solver.

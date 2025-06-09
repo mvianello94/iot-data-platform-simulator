@@ -62,18 +62,18 @@ services:
       timeout: 5s
       retries: 5
 
-  simulator:
+  devices-simulator:
     build:
-      context: ./simulator
+      context: ./devices-simulator
     depends_on:
       kafka:
         condition: service_healthy
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
 
-  spark-job:
+  spark-stream-processor:
     build:
-      context: ./spark-app
+      context: ./spark-stream-processor
     depends_on:
       kafka:
         condition: service_healthy

@@ -95,6 +95,20 @@ services:
         condition: service_healthy
     environment:
       - PYSPARK_PYTHON=python3
+    volumes:
+      - ./spark-conf:/opt/bitnami/spark/conf
+
+  spark-thrift-server:
+    image: bitnami/spark:3.5.6
+    environment:
+      - SPARK_MODE=thriftserver
+      - SPARK_MASTER_URL=local[*]
+    depends_on:
+      - minio
+    ports:
+      - "10000:10000"
+    volumes:
+      - ./spark-conf:/opt/bitnami/spark/conf
 
   superset:
     image: apache/superset:latest

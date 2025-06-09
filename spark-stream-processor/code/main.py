@@ -27,21 +27,8 @@ class MyListener(StreamingQueryListener):
         )
 
 
-logger.info("Creating Spark session...")
-# spark = (
-#     SparkSession.builder.appName("IoTStreamProcessor")
-#     .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000")
-#     .config("spark.hadoop.fs.s3a.access.key", "minioadmin")
-#     .config("spark.hadoop.fs.s3a.secret.key", "minioadmin")
-#     .config("spark.hadoop.fs.s3a.path.style.access", "true")
-#     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-#     .getOrCreate()
-# )
-
-minio_access_key = "minioadmin"
-minio_secret_key = "minioadmin"
-minio_endpoint = "http://minio:9000"
 # Create a Spark session with the necessary MinIO/S3A configurations
+logger.info("Creating Spark session...")
 spark = (
     SparkSession.builder.appName("WriteDeltaToMinIO")
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
@@ -49,12 +36,6 @@ spark = (
         "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.delta.catalog.DeltaCatalog",
     )
-    .config("spark.hadoop.fs.s3a.access.key", minio_access_key)
-    .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key)
-    .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint)
-    .config("spark.hadoop.fs.s3a.path.style.access", "true")
-    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-    .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
     .config(
         "spark.delta.logStore.class",
         "org.apache.spark.sql.delta.storage.S3SingleDriverLogStore",

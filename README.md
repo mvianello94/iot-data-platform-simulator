@@ -124,28 +124,8 @@ S3-compatible object store used as a local data lake:
 
 Bucket: iot-data
 
-Endpoint: http://localhost:9000
-
-<br>
-
-## Live test
-
-1. Open MinIO and create a bucket named iot-data
-
-1. Run everything: docker compose up
-
-1. View simulator logs:
-
-```bash
-docker compose logs -f simulator
-```
-
-1. Check what Spark is writing to Delta:
-
-```bash
-docker exec -it spark-job bash
-spark-sql -e "SELECT * FROM delta.`s3a://iot-data/events` LIMIT 10"
-```
+- API Endpoint: http://localhost:9000
+- UI: http://localhost:9001
 
 <br>
 

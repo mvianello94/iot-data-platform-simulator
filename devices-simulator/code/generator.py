@@ -9,12 +9,11 @@ from kafka import KafkaProducer
 from kafka.errors import KafkaError
 
 # Configure logging
+logging.basicConfig(
+    level=CONFIG.LOGGING_LEVEL,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger("IoTDataSimulator")
-logger.setLevel(CONFIG.LOGGING_LEVEL)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 try:
     producer = KafkaProducer(

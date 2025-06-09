@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python /app/generator.py
+python /app/code/generator.py

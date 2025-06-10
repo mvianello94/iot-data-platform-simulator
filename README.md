@@ -1,22 +1,51 @@
 # IoT Data Platform Simulator 🚀📡
 
-This project simulates a scalable IoT data platform for real-time streaming analytics. It features a Python-based data generator producing synthetic IoT sensor data, ingested via Apache Kafka and processed using Apache Spark Structured Streaming. The processed data is stored in a Delta Lake format on an S3-compatible MinIO bucket. All components are containerized with Docker Compose to be easy to run, extend, and experiment with.
-
-Main stack:
-
-- **Kafka** for event streaming
-- **Apache Spark Structured Streaming** for data processing
-- **MinIO** as an S3-compatible data lake with Apache Iceberg
-- **Python** everywhere for simplicity and flexibility
+This project simulates a scalable IoT data platform for real-time streaming analytics. It features a Python-based data generator producing synthetic IoT sensor data, ingested via Apache Kafka and processed using Apache Spark Structured Streaming. The processed data is stored in Apache Iceberg format on an S3-compatible MinIO bucket and explored via Apache Superset. Additionally, Apache Flink is included for potential use in real-time alerting and advanced stream processing scenarios. All components are containerized using Docker Compose, making the platform easy to run, extend, and experiment with.
 
 <br>
 
-## Architecture
+## Cloud-Ready Architecture Mapping
 
-1. Devices Simulator (Python)
-1. Kafka (Alternatively Amazon Kinesis Stream can be used: https://spark.apache.org/docs/latest/streaming-kinesis-integration.html)
-1. Spark Stream Processor (Spark Structured Streaming)
-1. Apache Iceberg (MinIO, compatible with Amazon S3)
+This setup demonstrates a portable, modular data platform built with Apache Spark, Apache Flink, Kafka, Iceberg, and Nessie. It is designed to run locally via Docker, but structured in a way that mirrors a cloud-native architecture.
+
+### Local-to-Cloud Service Mapping
+
+| Component             | Local / Dev (Docker)           | Cloud-Ready Equivalent                        |
+| --------------------- | ------------------------------ | --------------------------------------------- |
+| **Data Catalog**      | Apache Nessie (REST)           | AWS Glue / Lake Formation / Nessie on S3      |
+| **Version Control**   | Nessie                         | Nessie on S3 + DynamoDB / GCS                 |
+| **Object Storage**    | MinIO                          | Amazon S3 / Google Cloud Storage / Azure Blob |
+| **Batch Processing**  | Apache Spark (Docker)          | AWS EMR / Google Dataproc / Azure Synapse     |
+| **Stream Processing** | Apache Flink (Docker, PyFlink) | Flink on Kinesis / Dataflow / Event Hubs      |
+| **Messaging**         | Apache Kafka (Docker)          | MSK / PubSub / Azure Event Hubs               |
+| **SQL Engine**        | Spark SQL / DuckDB             | Athena / BigQuery / Synapse SQL               |
+| **BI / Dashboards**   | Apache Superset                | AWS QuickSight / Looker / Power BI            |
+
+### Why This Matters
+
+By structuring the platform with these components and clear modular boundaries, we demonstrate that:
+
+- **The platform is cloud-agnostic**: it runs anywhere, changes only the underlying services.
+- **Code and pipeline logic are reusable** between local/dev and production environments.
+- **Real-world data ops features** (e.g., data versioning, branching, rollback) are built-in via Iceberg + Nessie.
+
+<br>
+
+## Project Structure
+
+```graphql
+iot-data-platform-simulator/
+│
+├── docker-compose.yml
+│
+├── devices-simulator/        # IoT event generator
+│   ├── generator.py          # Sends random JSON events to Kafka
+│   └── Dockerfile
+│
+├── spark-stream-processor/   # Spark Structured Streaming job
+│   ├── main.py               # Reads from Kafka, writes to Delta Lake
+│   └── Dockerfile
+```
 
 <br>
 
@@ -48,24 +77,6 @@ User: minioadmin | Password: minioadmin
 
 Superset UI: http://localhost:8088
 User: admin | Password: admin123!
-
-<br>
-
-## Project Structure
-
-```graphql
-iot-data-platform-simulator/
-│
-├── docker-compose.yml
-│
-├── devices-simulator/        # IoT event generator
-│   ├── generator.py          # Sends random JSON events to Kafka
-│   └── Dockerfile
-│
-├── spark-stream-processor/   # Spark Structured Streaming job
-│   ├── main.py               # Reads from Kafka, writes to Delta Lake
-│   └── Dockerfile
-```
 
 <br>
 

@@ -6,7 +6,7 @@ Main stack:
 
 - **Kafka** for event streaming
 - **Apache Spark Structured Streaming** for data processing
-- **MinIO** as an S3-compatible data lake with Delta Lake
+- **MinIO** as an S3-compatible data lake with Apache Iceberg
 - **Python** everywhere for simplicity and flexibility
 
 <br>
@@ -16,7 +16,7 @@ Main stack:
 1. Devices Simulator (Python)
 1. Kafka (Alternatively Amazon Kinesis Stream can be used: https://spark.apache.org/docs/latest/streaming-kinesis-integration.html)
 1. Spark Stream Processor (Spark Structured Streaming)
-1. Delta Lake (MinIO, compatible with Amazon S3)
+1. Apache Iceberg (MinIO, compatible with Amazon S3)
 
 <br>
 
@@ -45,6 +45,9 @@ make up
 
 MinIO Console: http://localhost:9001
 User: minioadmin | Password: minioadmin
+
+Superset UI: http://localhost:8088
+User: admin | Password: admin123!
 
 <br>
 

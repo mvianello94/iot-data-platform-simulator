@@ -4,13 +4,13 @@ import random
 import time
 from datetime import datetime
 
-from config import CONFIG
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
+from settings import SETTINGS
 
 # Configure logging
 logging.basicConfig(
-    level=CONFIG.LOGGING_LEVEL,
+    level=SETTINGS.LOGGING_LEVEL,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("IoTDataSimulator")

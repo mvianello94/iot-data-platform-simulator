@@ -3,9 +3,9 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Config:
+class Settings:
     LOGGING_LEVEL: str = os.environ.get("LOGGING_LEVEL", "INFO")
 
 
-# Create a single shared config instance
-CONFIG = Config()
+# Create a single shared settings instance
+SETTINGS = Settings()

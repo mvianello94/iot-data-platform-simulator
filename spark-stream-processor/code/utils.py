@@ -46,9 +46,10 @@ def create_iot_events_iceberg_table(spark: SparkSession, table_identifier: str) 
         spark.sql(f"""
             CREATE TABLE IF NOT EXISTS {table_identifier} (
                 device_id STRING,
-                temperature DOUBLE,
-                humidity DOUBLE,
                 event_time TIMESTAMP,
+                variable_id STRING,
+                string_val STRING,
+                double_val DOUBLE,
                 year INT,
                 month INT,
                 day INT

@@ -1,9 +1,18 @@
 import logging
 
 from listener import StreamingListener
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, dayofmonth, from_json, month, to_timestamp, year
-from pyspark.sql.types import DoubleType, StringType, StructType
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import (
+    col,
+    dayofmonth,
+    explode,
+    from_json,
+    month,
+    to_timestamp,
+    when,
+    year,
+)
+from pyspark.sql.types import StringType, StructType
 from settings import SETTINGS
 from utils import create_iot_events_iceberg_table, get_spark_session
 
@@ -14,42 +23,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger("IoTStreamProcessor")
 
-
-# Schema for JSON messages coming from Kafka
-IOT_EVENTS_SCHEMA = (
+# Minimal schema just to extract device_id and timestamp
+BASE_SCHEMA = (
     StructType()
     .add("device_id", StringType(), nullable=False)
-    .add("temperature", DoubleType())
-    .add("humidity", DoubleType())
     .add("timestamp", StringType(), nullable=False)
 )
 
 
-def main():
+def main() -> None:
     """
-    Main function to initialize Spark, read from Kafka, process IoT events,
-    and write them to an Apache Iceberg table.
+    Main function to run the IoT Stream Processor application.
+    Reads IoT events from Kafka, normalizes them, and writes to an Iceberg table.
     """
     logger.info("Starting IoT Stream Processor application...")
 
-    # Create SparkSession configured for Apache Iceberg on MinIO
-    logger.info("Creating Spark session for Iceberg...")
+    spark: SparkSession = None
     try:
-        spark: SparkSession = get_spark_session()
-        spark.streams.addListener(
-            StreamingListener()
-        )  # Attach custom listener for debugging purpose
+        spark = get_spark_session()
+        spark.streams.addListener(StreamingListener())
         logger.info("Spark session created and listener attached.")
     except Exception as e:
-        logger.critical(
-            f"Failed to create Spark session or attach listener: {e}", exc_info=True
-        )
-        exit(1)  # Exit if Spark session cannot be initialized
+        logger.critical(f"Failed to create Spark session: {e}", exc_info=True)
+        exit(1)
 
-    # Create the Iceberg table if it doesn't exist
-    logger.info(
-        f"Ensuring Iceberg table '{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}' exists..."
-    )
     try:
         create_iot_events_iceberg_table(
             spark=spark,
@@ -57,14 +54,12 @@ def main():
         )
         logger.info("Iceberg table check/creation complete.")
     except Exception as e:
-        logger.critical(f"Failed to create or verify Iceberg table: {e}", exc_info=True)
-        spark.stop()
+        logger.critical(f"Failed to create/verify Iceberg table: {e}", exc_info=True)
+        if spark:
+            spark.stop()
         exit(1)
 
-    # Read from Kafka stream
-    logger.info(
-        f"Reading data from Kafka topic '{SETTINGS.KAFKA_TOPIC}' from brokers '{SETTINGS.KAFKA_BOOTSTRAP_SERVERS}'..."
-    )
+    df: DataFrame
     try:
         df = (
             spark.readStream.format("kafka")
@@ -76,64 +71,80 @@ def main():
         logger.info("Kafka stream reader initialized.")
     except Exception as e:
         logger.critical(f"Failed to initialize Kafka stream reader: {e}", exc_info=True)
-        spark.stop()
+        if spark:
+            spark.stop()
         exit(1)
 
-    # Parse JSON and add temporal columns for partitioning
-    logger.debug(
-        "Parsing JSON payload and adding temporal columns (year, month, day)..."
-    )
-    json_df = (
-        df.selectExpr(
-            "CAST(value AS STRING) as json"
-        )  # Cast binary Kafka value to string
-        .select(from_json(col("json"), IOT_EVENTS_SCHEMA).alias("data"))  # Parse JSON
-        .select("data.*")  # Select all fields from the parsed 'data' struct
+    logger.debug("Parsing JSON payload and normalizing IoT event data...")
+
+    # Step 1: Parse fixed fields (device_id, timestamp) and keep original JSON string.
+    parsed_df: DataFrame = (
+        df.selectExpr("CAST(value AS STRING) as json")
+        .select(from_json(col("json"), BASE_SCHEMA).alias("meta"), "json")
+        .select("meta.device_id", "meta.timestamp", "json")
     )
 
-    # Transform: Convert timestamp string to actual timestamp and extract date parts
-    transformed_df = (
-        json_df.withColumn(
-            "event_time", to_timestamp(col("timestamp"))
-        )  # Convert string to timestamp
-        .withColumn("year", year(col("event_time")))
-        .withColumn("month", month(col("event_time")))
-        .withColumn("day", dayofmonth(col("event_time")))
+    # Step 2: Convert full JSON string into map<string,string> for dynamic keys, then normalize.
+    # The 'explode' function transforms map entries into new rows.
+    normalized_df: DataFrame = (
+        parsed_df.withColumn("event_time", to_timestamp("timestamp"))
         .drop("timestamp")  # Drop the original string timestamp column
+        .withColumn("json_map", from_json(col("json"), "map<string,string>"))
+        # IMPORTANT FIX: Use select and provide two aliases for explode's output
+        .select(
+            "device_id",
+            "event_time",
+            explode(col("json_map")).alias("variable_key", "variable_value"),
+        )
+        .filter(
+            ~col("variable_key").isin("device_id", "timestamp")
+        )  # Exclude already extracted base fields
+        .select(
+            "device_id",
+            "event_time",
+            col("variable_key").alias("variable_id"),
+            col("variable_value").alias("string_val"),
+            # Attempt to cast value to double; null if not convertible
+            when(
+                col("variable_value").cast("double").isNotNull(),
+                col("variable_value").cast("double"),
+            ).alias("double_val"),
+            year("event_time").alias("year"),
+            month("event_time").alias("month"),
+            dayofmonth("event_time").alias("day"),
+        )
     )
-    logger.debug("Data transformation pipeline established.")
 
-    # Write processed data to Iceberg
-    logger.info(
-        f"Starting streaming write to Iceberg table '{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}' with checkpoint '{SETTINGS.CHECKPOINT_LOCATION}'..."
-    )
+    logger.debug("Data normalization complete. Starting write to Iceberg...")
+
     try:
-        query = (
-            transformed_df.writeStream.format("iceberg")
-            .outputMode("append")  # Append new data to the table
+        query_writer = (
+            normalized_df.writeStream.format("iceberg")
+            .outputMode("append")
             .option("checkpointLocation", SETTINGS.CHECKPOINT_LOCATION)
         )
-        # Apply streaming trigger if configured
+
         if SETTINGS.STREAMING_TRIGGER_INTERVAL:
             logger.info(
                 f"Setting streaming trigger interval to {SETTINGS.STREAMING_TRIGGER_INTERVAL}"
             )
-            query = query.trigger(processingTime=SETTINGS.STREAMING_TRIGGER_INTERVAL)
+            query_writer = query_writer.trigger(
+                processingTime=SETTINGS.STREAMING_TRIGGER_INTERVAL
+            )
 
-        stream_query = query.start(
+        stream_query = query_writer.start(
             f"{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}"
         )
 
-        logger.info(
-            "Streaming query started successfully. Awaiting termination signal..."
-        )
-        stream_query.awaitTermination()  # Block until the query terminates
+        logger.info("Streaming query started successfully. Awaiting termination...")
+        stream_query.awaitTermination()
     except Exception as e:
         logger.critical(f"Error during streaming query execution: {e}", exc_info=True)
     finally:
-        logger.info("Stopping Spark session...")
-        spark.stop()
-        logger.info("Spark session stopped. Application terminated.")
+        if spark:
+            logger.info("Stopping Spark session...")
+            spark.stop()
+            logger.info("Spark session stopped. Application terminated.")
 
 
 if __name__ == "__main__":

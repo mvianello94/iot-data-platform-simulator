@@ -15,62 +15,126 @@ logging.basicConfig(
 logger = logging.getLogger("IoTStreamProcessor")
 
 
-# Create SparkSession configured for Apache Iceberg on MinIO
-logger.info("Creating Spark session for Iceberg...")
-spark: SparkSession = get_spark_session()
-
-spark.streams.addListener(StreamingListener())
-logger.info("Spark session created and listener attached.")
-
-# Schema for JSON messages
-schema = (
+# Schema for JSON messages coming from Kafka
+IOT_EVENTS_SCHEMA = (
     StructType()
-    .add("device_id", StringType())
+    .add("device_id", StringType(), nullable=False)
     .add("temperature", DoubleType())
     .add("humidity", DoubleType())
-    .add("timestamp", StringType())
+    .add("timestamp", StringType(), nullable=False)
 )
 
-# Create the Iceberg table if it doesn't exist
-logger.info("Creating Iceberg table if not exists...")
-create_iot_events_iceberg_table(spark=spark)
 
-# Read from Kafka stream
-logger.info("Reading data from Kafka topic 'iot-events'...")
-df = (
-    spark.readStream.format("kafka")
-    .option("kafka.bootstrap.servers", "kafka:9092")
-    .option("subscribe", "iot-events")
-    .load()
-)
+def main():
+    """
+    Main function to initialize Spark, read from Kafka, process IoT events,
+    and write them to an Apache Iceberg table.
+    """
+    logger.info("Starting IoT Stream Processor application...")
 
-# Parse JSON and add temporal columns
-logger.debug("Parsing JSON and adding partition columns...")
-json_df = (
-    df.selectExpr("CAST(value AS STRING) as json")
-    .select(from_json(col("json"), schema).alias("data"))
-    .select("data.*")
-)
+    # Create SparkSession configured for Apache Iceberg on MinIO
+    logger.info("Creating Spark session for Iceberg...")
+    try:
+        spark: SparkSession = get_spark_session()
+        spark.streams.addListener(
+            StreamingListener()
+        )  # Attach custom listener for debugging purpose
+        logger.info("Spark session created and listener attached.")
+    except Exception as e:
+        logger.critical(
+            f"Failed to create Spark session or attach listener: {e}", exc_info=True
+        )
+        exit(1)  # Exit if Spark session cannot be initialized
 
-transformed_df = (
-    json_df.withColumn("event_time", to_timestamp(col("timestamp")))
-    .withColumn("year", year(col("event_time")))
-    .withColumn("month", month(col("event_time")))
-    .withColumn("day", dayofmonth(col("event_time")))
-    .drop("timestamp")
-)
+    # Create the Iceberg table if it doesn't exist
+    logger.info(
+        f"Ensuring Iceberg table '{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}' exists..."
+    )
+    try:
+        create_iot_events_iceberg_table(
+            spark=spark,
+            table_identifier=f"{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}",
+        )
+        logger.info("Iceberg table check/creation complete.")
+    except Exception as e:
+        logger.critical(f"Failed to create or verify Iceberg table: {e}", exc_info=True)
+        spark.stop()
+        exit(1)
 
-# Write to Iceberg
-logger.info("Starting streaming write to Iceberg table 'iot.events'...")
-try:
-    query = (
-        transformed_df.writeStream.format("iceberg")
-        .outputMode("append")
-        .option("checkpointLocation", "s3a://iot-data/checkpoints/events")
-        .start(f"{SETTINGS.ICEBERG_CATALOG}.iot.events")
+    # Read from Kafka stream
+    logger.info(
+        f"Reading data from Kafka topic '{SETTINGS.KAFKA_TOPIC}' from brokers '{SETTINGS.KAFKA_BOOTSTRAP_SERVERS}'..."
+    )
+    try:
+        df = (
+            spark.readStream.format("kafka")
+            .option("kafka.bootstrap.servers", SETTINGS.KAFKA_BOOTSTRAP_SERVERS)
+            .option("subscribe", SETTINGS.KAFKA_TOPIC)
+            .option("startingOffsets", SETTINGS.KAFKA_STARTING_OFFSETS)
+            .load()
+        )
+        logger.info("Kafka stream reader initialized.")
+    except Exception as e:
+        logger.critical(f"Failed to initialize Kafka stream reader: {e}", exc_info=True)
+        spark.stop()
+        exit(1)
+
+    # Parse JSON and add temporal columns for partitioning
+    logger.debug(
+        "Parsing JSON payload and adding temporal columns (year, month, day)..."
+    )
+    json_df = (
+        df.selectExpr(
+            "CAST(value AS STRING) as json"
+        )  # Cast binary Kafka value to string
+        .select(from_json(col("json"), IOT_EVENTS_SCHEMA).alias("data"))  # Parse JSON
+        .select("data.*")  # Select all fields from the parsed 'data' struct
     )
 
-    logger.info("Streaming query started. Awaiting termination.")
-    query.awaitTermination()
-except Exception as e:
-    logger.exception(e)
+    # Transform: Convert timestamp string to actual timestamp and extract date parts
+    transformed_df = (
+        json_df.withColumn(
+            "event_time", to_timestamp(col("timestamp"))
+        )  # Convert string to timestamp
+        .withColumn("year", year(col("event_time")))
+        .withColumn("month", month(col("event_time")))
+        .withColumn("day", dayofmonth(col("event_time")))
+        .drop("timestamp")  # Drop the original string timestamp column
+    )
+    logger.debug("Data transformation pipeline established.")
+
+    # Write processed data to Iceberg
+    logger.info(
+        f"Starting streaming write to Iceberg table '{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}' with checkpoint '{SETTINGS.CHECKPOINT_LOCATION}'..."
+    )
+    try:
+        query = (
+            transformed_df.writeStream.format("iceberg")
+            .outputMode("append")  # Append new data to the table
+            .option("checkpointLocation", SETTINGS.CHECKPOINT_LOCATION)
+        )
+        # Apply streaming trigger if configured
+        if SETTINGS.STREAMING_TRIGGER_INTERVAL:
+            logger.info(
+                f"Setting streaming trigger interval to {SETTINGS.STREAMING_TRIGGER_INTERVAL}"
+            )
+            query = query.trigger(processingTime=SETTINGS.STREAMING_TRIGGER_INTERVAL)
+
+        stream_query = query.start(
+            f"{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}"
+        )
+
+        logger.info(
+            "Streaming query started successfully. Awaiting termination signal..."
+        )
+        stream_query.awaitTermination()  # Block until the query terminates
+    except Exception as e:
+        logger.critical(f"Error during streaming query execution: {e}", exc_info=True)
+    finally:
+        logger.info("Stopping Spark session...")
+        spark.stop()
+        logger.info("Spark session stopped. Application terminated.")
+
+
+if __name__ == "__main__":
+    main()

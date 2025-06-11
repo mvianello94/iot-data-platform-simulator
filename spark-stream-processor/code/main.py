@@ -1,28 +1,28 @@
 import logging
 
-from config import CONFIG
 from listener import StreamingListener
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, dayofmonth, from_json, month, to_timestamp, year
 from pyspark.sql.types import DoubleType, StringType, StructType
+from settings import SETTINGS
 from utils import create_iot_events_iceberg_table, get_spark_session
 
-# Configura logging
+# Configure logging
 logging.basicConfig(
-    level=CONFIG.LOGGING_LEVEL,
+    level=SETTINGS.LOGGING_LEVEL,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("IoTStreamProcessor")
 
 
-# Crea SparkSession configurata per Apache Iceberg su MinIO
+# Create SparkSession configured for Apache Iceberg on MinIO
 logger.info("Creating Spark session for Iceberg...")
 spark: SparkSession = get_spark_session()
 
 spark.streams.addListener(StreamingListener())
 logger.info("Spark session created and listener attached.")
 
-# Schema per i messaggi JSON
+# Schema for JSON messages
 schema = (
     StructType()
     .add("device_id", StringType())
@@ -31,11 +31,11 @@ schema = (
     .add("timestamp", StringType())
 )
 
-# Crea la tabella Iceberg se non esiste
+# Create the Iceberg table if it doesn't exist
 logger.info("Creating Iceberg table if not exists...")
 create_iot_events_iceberg_table(spark=spark)
 
-# Leggi dallo stream Kafka
+# Read from Kafka stream
 logger.info("Reading data from Kafka topic 'iot-events'...")
 df = (
     spark.readStream.format("kafka")
@@ -44,7 +44,7 @@ df = (
     .load()
 )
 
-# Parsing JSON e aggiunta colonne temporali
+# Parse JSON and add temporal columns
 logger.debug("Parsing JSON and adding partition columns...")
 json_df = (
     df.selectExpr("CAST(value AS STRING) as json")
@@ -60,14 +60,14 @@ transformed_df = (
     .drop("timestamp")
 )
 
-# Scrittura su Iceberg
+# Write to Iceberg
 logger.info("Starting streaming write to Iceberg table 'iot.events'...")
 try:
     query = (
         transformed_df.writeStream.format("iceberg")
         .outputMode("append")
         .option("checkpointLocation", "s3a://iot-data/checkpoints/events")
-        .start("spark_catalog.iot.events")
+        .start(f"{SETTINGS.ICEBERG_CATALOG}.iot.events")
     )
 
     logger.info("Streaming query started. Awaiting termination.")

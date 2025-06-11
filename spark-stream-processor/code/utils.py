@@ -1,28 +1,15 @@
 from pyspark.sql import SparkSession
+from settings import SETTINGS
 
 
-def get_spark_session():
-    spark: SparkSession = (
-        SparkSession.builder.appName("WriteIcebergToMinIO")
-        .config(
-            "spark.sql.extensions",
-            "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
-        )
-        .config(
-            "spark.sql.catalog.spark_catalog",
-            "org.apache.iceberg.spark.SparkSessionCatalog",
-        )
-        .config("spark.sql.catalog.spark_catalog.type", "hadoop")
-        .config("spark.sql.catalog.spark_catalog.warehouse", "s3a://iot-data/warehouse")
-        .getOrCreate()
-    )
-
+def get_spark_session() -> SparkSession:
+    spark: SparkSession = SparkSession.builder.appName("StreamProcessor").getOrCreate()
     return spark
 
 
 def create_iot_events_iceberg_table(spark: SparkSession):
-    spark.sql("""
-    CREATE TABLE IF NOT EXISTS spark_catalog.iot.events (
+    spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS {SETTINGS.ICEBERG_CATALOG}.iot.events (
         device_id STRING,
         temperature DOUBLE,
         humidity DOUBLE,

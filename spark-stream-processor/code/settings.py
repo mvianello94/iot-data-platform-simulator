@@ -3,9 +3,10 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Config:
+class Settings:
     LOGGING_LEVEL: str = os.environ.get("LOGGING_LEVEL", "INFO")
+    ICEBERG_CATALOG: str = os.environ.get("ICEBERG_CATALOG")
 
 
 # Create a single shared config instance
-CONFIG = Config()
+SETTINGS = Settings()

@@ -122,6 +122,7 @@ services:
     environment:
       PYSPARK_PYTHON: python3
       SPARK_LOCAL_IP: 0.0.0.0
+      ICEBERG_CATALOG: iot_data
     volumes:
       - ./config/spark:/opt/bitnami/spark/conf
 

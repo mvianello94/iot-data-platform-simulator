@@ -122,13 +122,8 @@ services:
     environment:
       PYSPARK_PYTHON: python3
       SPARK_LOCAL_IP: 0.0.0.0
-      # MinIO/S3-compatible storage credentials for Spark
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      AWS_ENDPOINT: http://minio:9000
-      AWS_REGION: us-east-1
     volumes:
-      - ./spark-conf:/opt/bitnami/spark/conf
+      - ./config/spark:/opt/bitnami/spark/conf
 
   # spark-thrift-server:
   #   image: apache/spark:3.5.6

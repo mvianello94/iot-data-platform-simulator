@@ -12,8 +12,7 @@ This setup demonstrates a portable, modular data platform built with Apache Spar
 
 | Component             | Local / Dev (Docker)           | Cloud-Ready Equivalent                        |
 | --------------------- | ------------------------------ | --------------------------------------------- |
-| **Data Catalog**      | Apache Nessie (REST)           | AWS Glue / Lake Formation / Nessie on S3      |
-| **Version Control**   | Nessie                         | Nessie on S3 + DynamoDB / GCS                 |
+| **Data Catalog**      | Hadoop Catalog                 | AWS Glue / Lake Formation                     |
 | **Object Storage**    | MinIO                          | Amazon S3 / Google Cloud Storage / Azure Blob |
 | **Batch Processing**  | Apache Spark (Docker)          | AWS EMR / Google Dataproc / Azure Synapse     |
 | **Stream Processing** | Apache Flink (Docker, PyFlink) | Flink on Kinesis / Dataflow / Event Hubs      |

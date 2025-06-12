@@ -18,7 +18,7 @@ from utils import create_iot_events_iceberg_table, get_spark_session
 
 # Configure logging
 logging.basicConfig(
-    level=SETTINGS.LOGGING_LEVEL,
+    level=SETTINGS.logging_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("IoTStreamProcessor")
@@ -50,7 +50,7 @@ def main() -> None:
     try:
         create_iot_events_iceberg_table(
             spark=spark,
-            table_identifier=f"{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}",
+            table_identifier=f"{SETTINGS.iceberg.catalog}.{SETTINGS.iceberg.table_identifier}",
         )
         logger.info("Iceberg table check/creation complete.")
     except Exception as e:
@@ -63,9 +63,9 @@ def main() -> None:
     try:
         df = (
             spark.readStream.format("kafka")
-            .option("kafka.bootstrap.servers", SETTINGS.KAFKA_BOOTSTRAP_SERVERS)
-            .option("subscribe", SETTINGS.KAFKA_TOPIC)
-            .option("startingOffsets", SETTINGS.KAFKA_STARTING_OFFSETS)
+            .option("kafka.bootstrap.servers", SETTINGS.kafka.bootstrap_servers)
+            .option("subscribe", SETTINGS.kafka.topic)
+            .option("startingOffsets", SETTINGS.kafka.starting_offsets)
             .load()
         )
         logger.info("Kafka stream reader initialized.")
@@ -121,19 +121,19 @@ def main() -> None:
         query_writer = (
             normalized_df.writeStream.format("iceberg")
             .outputMode("append")
-            .option("checkpointLocation", SETTINGS.CHECKPOINT_LOCATION)
+            .option("checkpointLocation", SETTINGS.spark_streaming.checkpoint_location)
         )
 
-        if SETTINGS.STREAMING_TRIGGER_INTERVAL:
+        if SETTINGS.spark_streaming.streaming_trigger_interval:
             logger.info(
-                f"Setting streaming trigger interval to {SETTINGS.STREAMING_TRIGGER_INTERVAL}"
+                f"Setting streaming trigger interval to {SETTINGS.spark_streaming.streaming_trigger_interval}"
             )
             query_writer = query_writer.trigger(
-                processingTime=SETTINGS.STREAMING_TRIGGER_INTERVAL
+                processingTime=SETTINGS.spark_streaming.streaming_trigger_interval
             )
 
         stream_query = query_writer.start(
-            f"{SETTINGS.ICEBERG_CATALOG}.{SETTINGS.ICEBERG_TABLE_IDENTIFIER}"
+            f"{SETTINGS.iceberg.catalog}.{SETTINGS.iceberg.table_identifier}"
         )
 
         logger.info("Streaming query started successfully. Awaiting termination...")

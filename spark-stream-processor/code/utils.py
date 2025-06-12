@@ -1,12 +1,9 @@
 import logging
 
 from pyspark.sql import SparkSession
+from settings import SETTINGS  # import del singleton con i nuovi settings
 
-# No longer importing pyspark.sql.types if we're not using them for explicit schema definition
-# from pyspark.sql.types import StructType, StringType, DoubleType, TimestampType, IntegerType
-from settings import SETTINGS  # Assuming SETTINGS is well-defined
-
-logger = logging.getLogger("IoTStreamProcessorUtils")  # Use a specific logger for utils
+logger = logging.getLogger("IoTStreamProcessorUtils")
 
 
 def get_spark_session() -> SparkSession:
@@ -24,25 +21,22 @@ def get_spark_session() -> SparkSession:
         return spark
     except Exception as e:
         logger.error(f"Failed to create SparkSession: {e}", exc_info=True)
-        raise  # Re-raise the exception to be handled by the caller
+        raise
 
 
 def create_iot_events_iceberg_table(spark: SparkSession, table_identifier: str) -> None:
     """
     Creates an Apache Iceberg table for IoT events if it does not already exist.
-    If the table cannot be created or verified, an exception is raised.
+    Raises exception if creation/verifying fails.
 
     Args:
-        spark (SparkSession): The active SparkSession.
-        table_identifier (str): The full identifier of the Iceberg table (e.g., "catalog.database.table").
+        spark (SparkSession): active Spark session.
+        table_identifier (str): full iceberg table identifier.
 
-    Raises:
-        Exception: If the table creation or verification process fails.
     """
     logger.info(f"Checking/creating Iceberg table '{table_identifier}'...")
 
     try:
-        # Using SQL DDL to create the table
         spark.sql(f"""
             CREATE TABLE IF NOT EXISTS {table_identifier} (
                 device_id STRING,
@@ -57,15 +51,15 @@ def create_iot_events_iceberg_table(spark: SparkSession, table_identifier: str) 
             USING iceberg
             PARTITIONED BY (year, month, day)
             TBLPROPERTIES (
-                'write.format.default'='{SETTINGS.ICEBERG_WRITE_FORMAT_DEFAULT}',
-                'format-version'='{SETTINGS.ICEBERG_FORMAT_VERSION}',
-                'history.expire.max-snapshots'='{SETTINGS.ICEBERG_HISTORY_EXPIRE_MAX_SNAPSHOTS}',
-                'history.expire.min-snapshots-to-retain'='{SETTINGS.ICEBERG_HISTORY_EXPIRE_MIN_SNAPSHOTS_TO_RETAIN}',
-                'write.data.target-file-size-bytes'='{SETTINGS.ICEBERG_WRITE_DATA_TARGET_FILE_SIZE_BYTES}',
-                'write.parquet.compression-codec'='{SETTINGS.ICEBERG_WRITE_PARQUET_COMPRESSION_CODEC}',
-                'optimize.rewrite-data.enabled'='{SETTINGS.ICEBERG_OPTIMIZE_REWRITE_DATA_ENABLED}',
-                'optimize.rewrite-data.target-file-size-bytes'='{SETTINGS.ICEBERG_OPTIMIZE_REWRITE_DATA_TARGET_FILE_SIZE_BYTES}',
-                'checkpoint_location'='{SETTINGS.CHECKPOINT_LOCATION}'
+                'write.format.default'='{SETTINGS.iceberg.write_format_default}',
+                'format-version'='{SETTINGS.iceberg.format_version}',
+                'history.expire.max-snapshots'='{SETTINGS.iceberg.history_expire_max_snapshots}',
+                'history.expire.min-snapshots-to-retain'='{SETTINGS.iceberg.history_expire_min_snapshots_to_retain}',
+                'write.data.target-file-size-bytes'='{SETTINGS.iceberg.write_data_target_file_size_bytes}',
+                'write.parquet.compression-codec'='{SETTINGS.iceberg.write_parquet_compression_codec}',
+                'optimize.rewrite-data.enabled'='{str(SETTINGS.iceberg.optimize_rewrite_data_enabled).lower()}',
+                'optimize.rewrite-data.target-file-size-bytes'='{SETTINGS.iceberg.optimize_rewrite_data_target_file_size_bytes}',
+                'checkpoint_location'='{SETTINGS.spark_streaming.checkpoint_location}'
             )
         """)
         logger.info(f"Iceberg table '{table_identifier}' ensured to exist.")
@@ -74,5 +68,4 @@ def create_iot_events_iceberg_table(spark: SparkSession, table_identifier: str) 
             f"Failed to create or verify Iceberg table '{table_identifier}': {e}",
             exc_info=True,
         )
-        # Re-raise the exception after logging, to be caught by the main application flow
         raise

@@ -1,51 +1,78 @@
 import json
 import logging
 import random
+import signal
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 from settings import SETTINGS
 
-# Configure logging
 logging.basicConfig(
     level=SETTINGS.LOGGING_LEVEL,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("IoTDataSimulator")
 
-try:
-    producer = KafkaProducer(
-        bootstrap_servers="kafka:9092",
-        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-    )
-    logger.info("KafkaProducer initialized.")
-except KafkaError as e:
-    logger.error(f"Failed to initialize KafkaProducer: {e}")
-    raise SystemExit(1)
+running = True
 
-device_ids = ["sensor-1", "sensor-2", "sensor-3"]
 
-logger.info("Starting IoT data simulation...")
-try:
-    while True:
-        data = {
-            "device_id": random.choice(device_ids),
-            "temperature": round(random.uniform(20.0, 30.0), 2),
-            "humidity": round(random.uniform(30.0, 70.0), 2),
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-        try:
-            producer.send("iot-events", value=data)
-            logger.info(f"Sent data: {data}")
-        except KafkaError as e:
-            logger.error(f"Failed to send data to Kafka: {e}")
-        time.sleep(1)
-except KeyboardInterrupt:
-    logger.info("Simulation interrupted by user.")
-except Exception as e:
-    logger.exception(f"Unexpected error in data simulator: {e}")
-finally:
-    producer.close()
-    logger.info("Kafka producer closed.")
+def handle_shutdown(signum, frame):
+    global running
+    logger.info(f"Received shutdown signal ({signum}). Stopping simulation...")
+    running = False
+
+
+signal.signal(signal.SIGINT, handle_shutdown)
+signal.signal(signal.SIGTERM, handle_shutdown)
+
+
+def create_kafka_producer():
+    try:
+        producer = KafkaProducer(
+            bootstrap_servers=SETTINGS.KAFKA_BOOTSTRAP_SERVERS,
+            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+        )
+        logger.info("KafkaProducer initialized.")
+        return producer
+    except KafkaError as e:
+        logger.error(f"Failed to initialize KafkaProducer: {e}")
+        raise SystemExit(1)
+
+
+def generate_iot_data():
+    data = {
+        "device_id": random.choice(SETTINGS.DEVICE_IDS),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    for var, (vmin, vmax) in SETTINGS.VARIABLE_RANGES.items():
+        data[var] = round(random.uniform(vmin, vmax), 2)
+
+    return data
+
+
+def run_simulation():
+    logger.info("Starting IoT data simulation...")
+
+    producer = create_kafka_producer()
+
+    try:
+        while running:
+            data = generate_iot_data()
+            try:
+                producer.send(SETTINGS.KAFKA_TOPIC, value=data)
+                logger.info(f"Sent data: {data}")
+            except KafkaError as e:
+                logger.error(f"Failed to send data to Kafka: {e}")
+            time.sleep(SETTINGS.SLEEP_INTERVAL_SECONDS)
+    except Exception as e:
+        logger.exception(f"Unexpected error in data simulator: {e}")
+    finally:
+        producer.close()
+        logger.info("Kafka producer closed.")
+
+
+if __name__ == "__main__":
+    run_simulation()

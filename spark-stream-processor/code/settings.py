@@ -2,17 +2,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class KafkaSettings(BaseSettings):
-    bootstrap_servers: str = "kafka:9092"
-    topic: str = "iot-events"
-    starting_offsets: str = "latest"
-
     model_config = SettingsConfigDict(
         env_prefix="KAFKA_",
         case_sensitive=False,
     )
 
+    bootstrap_servers: str = "kafka:9092"
+    topic: str = "iot-events"
+    starting_offsets: str = "latest"
+
 
 class IcebergSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="ICEBERG_",
+        case_sensitive=False,
+    )
+
     catalog: str = "spark_catalog"
     table_identifier: str = "iot.events"
     write_format_default: str = "parquet"
@@ -24,34 +29,29 @@ class IcebergSettings(BaseSettings):
     optimize_rewrite_data_enabled: bool = False
     optimize_rewrite_data_target_file_size_bytes: int = 1_073_741_824
 
-    model_config = SettingsConfigDict(
-        env_prefix="ICEBERG_",
-        case_sensitive=False,
-    )
-
 
 class SparkStreamingSettings(BaseSettings):
-    checkpoint_location: str = "s3a://iot-data/checkpoints/events"
-    streaming_trigger_interval: str | None = None
-
     model_config = SettingsConfigDict(
         env_prefix="SPARK_STREAMING_",
         case_sensitive=False,
     )
 
+    checkpoint_location: str = "s3a://iot-data/checkpoints/events"
+    trigger_interval: str | None = None
+
 
 class Settings(BaseSettings):
-    logging_level: str = "INFO"
-
-    kafka: KafkaSettings = KafkaSettings()
-    iceberg: IcebergSettings = IcebergSettings()
-    spark_streaming: SparkStreamingSettings = SparkStreamingSettings()
-
     model_config = SettingsConfigDict(
         case_sensitive=False,
         env_file=".env",
         env_file_encoding="utf-8",
     )
+
+    logging_level: str = "INFO"
+
+    kafka: KafkaSettings = KafkaSettings()
+    iceberg: IcebergSettings = IcebergSettings()
+    spark_streaming: SparkStreamingSettings = SparkStreamingSettings()
 
 
 SETTINGS = Settings()

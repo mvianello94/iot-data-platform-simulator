@@ -124,12 +124,12 @@ def main() -> None:
             .option("checkpointLocation", SETTINGS.spark_streaming.checkpoint_location)
         )
 
-        if SETTINGS.spark_streaming.streaming_trigger_interval:
+        if SETTINGS.spark_streaming.trigger_interval:
             logger.info(
-                f"Setting streaming trigger interval to {SETTINGS.spark_streaming.streaming_trigger_interval}"
+                f"Setting streaming trigger interval to {SETTINGS.spark_streaming.trigger_interval}"
             )
             query_writer = query_writer.trigger(
-                processingTime=SETTINGS.spark_streaming.streaming_trigger_interval
+                processingTime=SETTINGS.spark_streaming.trigger_interval
             )
 
         stream_query = query_writer.start(

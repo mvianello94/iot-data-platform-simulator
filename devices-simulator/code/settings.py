@@ -1,75 +1,113 @@
 import os
-from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Tuple
+
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass
-class Settings:
+class KafkaSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="KAFKA_", case_sensitive=False)
+
+    bootstrap_servers: str = "kafka:9092"
+    topic: str = "iot-events"
+
+
+class SimulationSettings(BaseSettings):
     """
-    Configuration settings for the IoT Data Simulator.
-    Default values are defined directly in the class and can be overridden by environment variables.
+    Configuration for the IoT Data Simulator.
+
+    You can override any default using environment variables.
+    - DEVICE_IDS: comma-separated list of device IDs (default: "sensor-1,sensor-2,sensor-3")
+    - VARIABLES: comma-separated list of variables to simulate (default: "temperature,humidity")
+    - {VARIABLE}_MIN and {VARIABLE}_MAX: override min/max range for a given variable
+      Example: TEMPERATURE_MIN=18.5, HUMIDITY_MAX=80
+
+    Supported variables with default ranges:
+    - temperature: (20.0, 30.0)
+    - humidity: (30.0, 70.0)
+    - pressure: (950.0, 1050.0)
+    - power: (100.0, 1000.0)
+    - co2: (400.0, 2000.0)
+
+    Examples (in .env or shell):
+    ----------------------------------------
+    DEVICE_IDS=sensor-a,sensor-b
+    VARIABLES=temperature,power
+    TEMPERATURE_MIN=15.0
+    TEMPERATURE_MAX=25.0
+    POWER_MIN=200.0
+    POWER_MAX=800.0
+    ----------------------------------------
+
+    The final variable_ranges dict will be computed based on the selected VARIABLES,
+    pulling from environment overrides or falling back to default_ranges.
     """
 
-    # Logging
-    LOGGING_LEVEL: str = os.environ.get("LOGGING_LEVEL", "INFO")
+    model_config = SettingsConfigDict(env_prefix="", case_sensitive=False)
 
-    # Kafka
-    KAFKA_BOOTSTRAP_SERVERS: str = os.environ.get(
-        "KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"
-    )
-    KAFKA_TOPIC: str = os.environ.get("KAFKA_TOPIC", "iot-events")
+    sleep_interval_seconds: float = 1.0
+    device_ids: List[str] = ["sensor-1", "sensor-2", "sensor-3"]
+    variables: List[str] = ["temperature", "humidity", "pressure", "power", "co2"]
+    default_ranges: Dict[str, Tuple[float, float]] = {
+        "temperature": (20.0, 30.0),
+        "humidity": (30.0, 70.0),
+        "pressure": (950.0, 1050.0),
+        "power": (100.0, 1000.0),
+        "co2": (400.0, 2000.0),
+    }
+    variable_ranges: Dict[str, Tuple[float, float]] = {}
 
-    # Devices
-    DEVICE_IDS: List[str] = field(
-        default_factory=lambda: os.environ.get(
-            "DEVICE_IDS", "sensor-1,sensor-2,sensor-3"
-        ).split(",")
-    )
+    @field_validator("device_ids", mode="before")
+    def split_device_ids(cls, v):
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return v
 
-    # Timing
-    SLEEP_INTERVAL_SECONDS: float = float(
-        os.environ.get("SLEEP_INTERVAL_SECONDS", "1.0")
-    )
+    @field_validator("variables", mode="before")
+    def split_variables(cls, v):
+        if isinstance(v, str):
+            return [item.strip().lower() for item in v.split(",") if item.strip()]
+        return [item.lower() for item in v]
 
-    # Variables to simulate
-    VARIABLES: List[str] = field(
-        default_factory=lambda: os.environ.get(
-            "VARIABLES", "temperature,humidity"
-        ).split(",")
-    )
+    @model_validator(mode="after")
+    def resolve_variable_ranges(self) -> "SimulationSettings":
+        ranges = {}
 
-    # Default ranges per variable
-    DEFAULT_RANGES: Dict[str, tuple] = field(
-        default_factory=lambda: {
-            "temperature": (20.0, 30.0),
-            "humidity": (30.0, 70.0),
-            "pressure": (950.0, 1050.0),
-            "power": (100.0, 1000.0),
-            "co2": (400.0, 2000.0),
-        }
-    )
-
-    VARIABLE_RANGES: Dict[str, tuple] = field(init=False)
-
-    def __post_init__(self):
-        self.VARIABLES = [v.strip().lower() for v in self.VARIABLES if v.strip()]
-        self.VARIABLE_RANGES = {}
-
-        for var in self.VARIABLES:
-            env_min = os.environ.get(f"{var.upper()}_MIN")
-            env_max = os.environ.get(f"{var.upper()}_MAX")
+        for var in self.variables:
+            env_min = self.__read_env_float(f"{var.upper()}_MIN")
+            env_max = self.__read_env_float(f"{var.upper()}_MAX")
 
             if env_min is not None and env_max is not None:
-                try:
-                    self.VARIABLE_RANGES[var] = (float(env_min), float(env_max))
-                except ValueError:
-                    raise ValueError(f"Invalid numeric range for variable '{var}'.")
-            elif var in self.DEFAULT_RANGES:
-                self.VARIABLE_RANGES[var] = self.DEFAULT_RANGES[var]
+                ranges[var] = (env_min, env_max)
+            elif var in self.default_ranges:
+                ranges[var] = self.default_ranges[var]
             else:
                 raise ValueError(
-                    f"No range found for variable '{var}' and no default provided."
+                    f"No range found or default provided for variable '{var}'."
                 )
 
+        self.variable_ranges = ranges
+        return self
 
-SETTINGS = Settings()
+    def __read_env_float(self, key: str):
+        val = os.getenv(key)
+        if val is not None:
+            try:
+                return float(val)
+            except ValueError:
+                raise ValueError(f"Invalid float for env var {key}: '{val}'")
+        return None
+
+
+class SimulatorSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+    )
+
+    logging_level: str = "INFO"
+
+    kafka: KafkaSettings = KafkaSettings()
+    simulation: SimulationSettings = SimulationSettings()
+
+
+SETTINGS = SimulatorSettings()

@@ -14,6 +14,6 @@ COPY . .
 RUN chmod +x /app/entrypoint.sh
 
 # Copy requirements and install Python dependencies
-# RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 ENTRYPOINT ["/app/entrypoint.sh"]

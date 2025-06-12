@@ -123,7 +123,7 @@ services:
       PYSPARK_PYTHON: python3
       SPARK_LOCAL_IP: 0.0.0.0
       ICEBERG_CATALOG: iot_data
-      STREAMING_TRIGGER_INTERVAL: 30 seconds
+      SPARK_STREAMING_TRIGGER_INTERVAL: 30 seconds
     volumes:
       - ./config/spark:/opt/bitnami/spark/conf
 

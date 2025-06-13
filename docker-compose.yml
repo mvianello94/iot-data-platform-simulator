@@ -100,6 +100,19 @@ services:
         mc policy set public local/iot-data;
       "
 
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    hostname: postgres
+    environment:
+      POSTGRES_DB: iot
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   nessie:
     image: ghcr.io/projectnessie/nessie
     container_name: nessie
@@ -108,6 +121,7 @@ services:
     volumes:
       - ./config/nessie/application.properties:/deployments/config/application.properties:ro
     environment:
+      - QUARKUS_PROFILE=dev
       - QUARKUS_CONFIG_LOCATIONS=file:/deployments/config/application.properties
 
   devices-simulator:
@@ -171,4 +185,5 @@ volumes:
   zookeeper_data:
   zookeeper_log:
   minio_data:
+  postgres_data:
   superset_home:

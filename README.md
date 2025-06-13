@@ -144,13 +144,17 @@ For development purpose use the default admin user:
 Username: minioadmin
 Password: minioadmin
 
-### Apache Superset
+### Nessie
 
-- UI: http://localhost:8088
+- UI: http://localhost:19120
+
+### Grafana
+
+- UI: http://localhost:3000
 
 For development purpose use the default admin user created using `docker-compose.yml`:
 Username: admin
-Password: admin123!
+Password: admin
 
 <br>
 

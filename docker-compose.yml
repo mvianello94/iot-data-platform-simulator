@@ -171,24 +171,25 @@ services:
     volumes:
       - ./config/trino/catalog:/etc/trino/catalog
 
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   container_name: grafana
-  #   depends_on:
-  #     trino:
-  #       condition: service_started
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - GF_SECURITY_ADMIN_USER=admin
-  #     - GF_SECURITY_ADMIN_PASSWORD=admin
-  #   volumes:
-  #     - grafana_data:/var/lib/grafana
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:3000/login"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    depends_on:
+      trino:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=trino-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   kafka_data:

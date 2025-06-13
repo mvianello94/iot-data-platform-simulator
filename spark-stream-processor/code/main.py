@@ -14,7 +14,7 @@ from pyspark.sql.functions import (
 )
 from pyspark.sql.types import StringType, StructType
 from settings import SETTINGS
-from utils import create_iot_events_iceberg_table, get_spark_session
+from utils import create_iot_telemetry_iceberg_table, get_spark_session
 
 # Configure logging
 logging.basicConfig(
@@ -34,7 +34,7 @@ BASE_SCHEMA = (
 def main() -> None:
     """
     Main function to run the IoT Stream Processor application.
-    Reads IoT events from Kafka, normalizes them, and writes to an Iceberg table.
+    Reads IoT telemetry from Kafka, normalizes them, and writes to an Iceberg table.
     """
     logger.info("Starting IoT Stream Processor application...")
 
@@ -48,7 +48,7 @@ def main() -> None:
         exit(1)
 
     try:
-        create_iot_events_iceberg_table(
+        create_iot_telemetry_iceberg_table(
             spark=spark,
             table_identifier=f"{SETTINGS.iceberg.catalog}.{SETTINGS.iceberg.table_identifier}",
         )

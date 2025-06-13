@@ -5,14 +5,22 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class KafkaSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="KAFKA_", case_sensitive=False)
+class CustomBaseSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
-    bootstrap_servers: str = "kafka:9092"
-    topic: str = "iot-events"
+
+class KafkaSettings(CustomBaseSettings):
+    model_config = SettingsConfigDict(env_prefix="KAFKA_")
+
+    bootstrap_servers: str
+    topic: str
 
 
-class SimulationSettings(BaseSettings):
+class SimulationSettings(CustomBaseSettings):
     """
     Configuration for the IoT Data Simulator.
 
@@ -43,7 +51,7 @@ class SimulationSettings(BaseSettings):
     pulling from environment overrides or falling back to default_ranges.
     """
 
-    model_config = SettingsConfigDict(env_prefix="", case_sensitive=False)
+    model_config = SettingsConfigDict(env_prefix="")
 
     sleep_interval_seconds: float = 1.0
     device_ids: List[str] = ["sensor-1", "sensor-2", "sensor-3"]
@@ -99,11 +107,7 @@ class SimulationSettings(BaseSettings):
         return None
 
 
-class SimulatorSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
-    )
-
+class SimulatorSettings(CustomBaseSettings):
     logging_level: str = "INFO"
 
     kafka: KafkaSettings = KafkaSettings()

@@ -38,7 +38,7 @@ iot-data-platform-simulator/
 ├── docker-compose.yml
 │
 ├── devices-simulator/        # IoT event generator
-│   ├── generator.py          # Sends random JSON events to Kafka
+│   ├── generator.py          # Sends random JSON telemetry to Kafka
 │   └── Dockerfile
 │
 ├── spark-stream-processor/   # Spark Structured Streaming job
@@ -117,9 +117,9 @@ make clean      # Tear down everything and clean volumes
 
 ### Kafka
 
-Topic: iot-events
+Topic: iot-telemetry
 
-Message format: JSON with device_id, temperature, humidity, timestamp
+Message format: JSON with device_id, temperature, humidity, ..., timestamp
 
 ### Spark Structured Streaming
 
@@ -127,7 +127,7 @@ Consumes Kafka topic as a stream
 
 Parses JSON messages using schema
 
-Writes Delta Lake tables to s3a://iot-data/events
+Writes data to Apache Iceberg Table s3a://iot-data/telemetry
 
 Uses checkpointing for fault tolerance
 

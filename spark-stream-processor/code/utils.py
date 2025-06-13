@@ -24,9 +24,11 @@ def get_spark_session() -> SparkSession:
         raise
 
 
-def create_iot_events_iceberg_table(spark: SparkSession, table_identifier: str) -> None:
+def create_iot_telemetry_iceberg_table(
+    spark: SparkSession, table_identifier: str
+) -> None:
     """
-    Creates an Apache Iceberg table for IoT events if it does not already exist.
+    Creates an Apache Iceberg table for IoT telemetry if it does not already exist.
     Raises exception if creation/verifying fails.
 
     Args:

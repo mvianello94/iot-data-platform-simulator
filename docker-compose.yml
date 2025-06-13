@@ -136,6 +136,7 @@ services:
         condition: service_healthy
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=iot-telemetry
 
   spark-stream-processor:
     build:
@@ -149,12 +150,12 @@ services:
     environment:
       - PYSPARK_PYTHON=python3
       - SPARK_LOCAL_IP=0.0.0.0
-      - KAFKA_TOPIC=iot-events
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=iot-telemetry
       - KAFKA_STARTING_OFFSETS=latest
       - ICEBERG_CATALOG=iot_data
-      - ICEBERG_TABLE_IDENTIFIER=iot.events
-      - SPARK_STREAMING_CHECKPOINT_LOCATION=s3a://iot-data/checkpoints/events
+      - ICEBERG_TABLE_IDENTIFIER=iot.telemetry
+      - SPARK_STREAMING_CHECKPOINT_LOCATION=s3a://iot-data/checkpoints/telemetry
       - SPARK_STREAMING_TRIGGER_INTERVAL=30 seconds
     volumes:
       - ./config/spark:/opt/bitnami/spark/conf

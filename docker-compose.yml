@@ -66,7 +66,7 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     container_name: minio
     hostname: minio
     ports:
@@ -114,8 +114,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   nessie:
-    image: ghcr.io/projectnessie/nessie
+    image: ghcr.io/projectnessie/nessie:latest
     container_name: nessie
+    depends_on:
+      minio:
+        condition: service_healthy
     ports:
       - "19120:19120"
     volumes:
@@ -157,28 +160,35 @@ services:
     volumes:
       - ./config/spark:/opt/bitnami/spark/conf
 
-# superset:
-#   image: apache/superset:latest
-#   container_name: superset
-#   ports:
-#     - "8088:8088"
-#   environment:
-#     - SUPERSET_ENV=development
-#     - SUPERSET_LOAD_EXAMPLES=no
-#     - SUPERSET_SECRET_KEY=your_super_secret_key_here_change_this_in_production!
-#   volumes:
-#     - superset_home:/app/superset_home
-#   depends_on:
-#     minio:
-#       condition: service_healthy
-#   command: >
-#     /bin/sh -c "
-#       superset db upgrade &&
-#       superset init &&
-#       superset fab create-admin --username admin --firstname Admin --lastname Admin --email admin@example.com --password admin123! || true &&
-#       superset run -p 8088 --host 0.0.0.0
-#     "
-#   restart: on-failure
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino
+    depends_on:
+      nessie:
+        condition: service_started
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./config/trino/catalog:/etc/trino/catalog
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: grafana
+  #   depends_on:
+  #     trino:
+  #       condition: service_started
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_USER=admin
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000/login"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
 volumes:
   kafka_data:
@@ -186,4 +196,4 @@ volumes:
   zookeeper_log:
   minio_data:
   postgres_data:
-  superset_home:
+  grafana_data:

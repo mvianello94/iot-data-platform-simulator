@@ -34,6 +34,12 @@ def create_iot_events_iceberg_table(spark: SparkSession, table_identifier: str) 
         table_identifier (str): full iceberg table identifier.
 
     """
+    # Extract namespace from table identifier
+    namespace = ".".join(table_identifier.split(".")[:-1])
+
+    logger.info(f"Ensuring namespace '{namespace}' exists...")
+    spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {namespace}")
+
     logger.info(f"Checking/creating Iceberg table '{table_identifier}'...")
 
     try:

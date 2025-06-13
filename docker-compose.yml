@@ -100,23 +100,6 @@ services:
         mc policy set public local/iot-data;
       "
 
-  # nessie:
-  #   image: ghcr.io/projectnessie/nessie
-  #   container_name: nessie
-  #   ports:
-  #     - "19120:19120"
-  #   environment:
-  #     - NESSIE_VERSION_STORE_TYPE=IN_MEMORY
-  #     - NESSIE_CATALOG_DEFAULT_WAREHOUSE=warehouse
-  #     - NESSIE_CATALOG_WAREHOUSES_WAREHOUSE_LOCATION=s3://iot-data/
-  #     - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ENDPOINT=http://minio:9000/
-  #     - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ACCESS_KEY=urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
-  #     - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_PATH_STYLE_ACCESS=true
-  #     - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_AUTH_TYPE=STATIC
-  #     - NESSIE_CATALOG_SECRETS_ACCESS_KEY_NAME=minioadmin
-  #     - NESSIE_CATALOG_SECRETS_ACCESS_KEY_SECRET=minioadmin
-  #     - NESSIE_SERVER_AUTHENTICATION_ENABLED=false
-
   nessie:
     image: ghcr.io/projectnessie/nessie
     container_name: nessie
@@ -159,16 +142,6 @@ services:
       - SPARK_STREAMING_TRIGGER_INTERVAL=30 seconds
     volumes:
       - ./config/spark:/opt/bitnami/spark/conf
-
-# trino:
-#   image: trinodb/trino:latest
-#   container_name: trino
-#   ports:
-#     - "8080:8080"
-#   volumes:
-#     - ./trino/etc:/etc/trino
-#   depends_on:
-#     - iceberg-rest
 
 # superset:
 #   image: apache/superset:latest

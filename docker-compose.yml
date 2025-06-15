@@ -127,10 +127,10 @@ services:
       - QUARKUS_PROFILE=dev
       - QUARKUS_CONFIG_LOCATIONS=file:/deployments/config/application.properties
 
-  devices-simulator:
+  iot-data-generator:
     build:
-      context: ./devices-simulator
-    container_name: devices-simulator
+      context: ./iot-data-generator
+    container_name: iot-data-generator
     depends_on:
       kafka:
         condition: service_healthy
@@ -183,9 +183,10 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=trino-datasource
+      - GF_INSTALL_PLUGINS=trino-datasource
     volumes:
-      - grafana_data:/var/lib/grafana
-      - grafana_trino_data:/var/lib/grafana/plugins/trino
+      # 'data/grafana' contains DEMO configurations
+      - ./data/grafana:/var/lib/grafana
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/login"]
       interval: 10s
@@ -198,5 +199,3 @@ volumes:
   zookeeper_log:
   minio_data:
   postgres_data:
-  grafana_data:
-  grafana_trino_data:

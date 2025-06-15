@@ -37,7 +37,7 @@ iot-data-platform-simulator/
 │
 ├── docker-compose.yml
 │
-├── devices-simulator/        # IoT event generator
+├── iot-data-generator/        # IoT event generator
 │   ├── generator.py          # Sends random JSON telemetry to Kafka
 │   └── Dockerfile
 │

@@ -12,9 +12,7 @@ services:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
     healthcheck:
-      test:
-        - CMD-SHELL
-        - nc -z localhost 2181 || exit 1
+      test: ["CMD-SHELL", "nc -z localhost 2181 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,10 +38,10 @@ services:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
       test:
-        - CMD-SHELL
-        - kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic iot-raw-telemetry;
-        - kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic iot-processed-telemetry;
-        - kafka-topics --bootstrap-server localhost:9092 --list > /dev/null || exit 1
+        [
+          "CMD-SHELL",
+          "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -65,9 +63,7 @@ services:
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
       # SCHEMA_REGISTRY_DEBUG: "true"
     healthcheck:
-      test:
-        - CMD-SHELL
-        - curl -f http://localhost:8081/subjects || exit 1
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/subjects || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -87,8 +83,10 @@ services:
       - minio_data:/data
     healthcheck:
       test:
-        - CMD-SHELL
-        - curl -f http://localhost:9000/minio/health/live || exit 1
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:9000/minio/health/live || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -111,12 +109,12 @@ services:
     image: postgres:14
     container_name: postgres
     hostname: postgres
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: iot
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -142,8 +140,8 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TOPIC=iot-raw-telemetry
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: iot-raw-telemetry
 
   spark-stream-processor:
     build:
@@ -216,7 +214,7 @@ services:
       # 'data/grafana' contains DEMO dashboards configurations
       - ./data/grafana:/var/lib/grafana
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/login"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/login"]
       interval: 10s
       timeout: 5s
       retries: 5

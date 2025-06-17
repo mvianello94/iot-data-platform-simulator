@@ -38,6 +38,8 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
+        - kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic iot-raw-telemetry;
+        - kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic iot-processed-telemetry;
         - kafka-topics --bootstrap-server localhost:9092 --list > /dev/null || exit 1
       interval: 10s
       timeout: 5s
@@ -136,12 +138,31 @@ services:
         condition: service_healthy
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TOPIC=iot-telemetry
+      - KAFKA_TOPIC=iot-raw-telemetry
 
   spark-stream-processor:
     build:
       context: ./spark-stream-processor
     container_name: spark-stream-processor
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - PYSPARK_PYTHON=python3
+      - SPARK_LOCAL_IP=0.0.0.0
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_RAW_DATA_TOPIC=iot-raw-telemetry
+      - KAFKA_PROCESSED_DATA_TOPIC=iot-processed-telemetry
+      - KAFKA_STARTING_OFFSETS=latest
+      - SPARK_STREAMING_CHECKPOINT_LOCATION=s3a://iot-data/checkpoints/spark-stream-processor/raw-telemetry
+      - SPARK_STREAMING_TRIGGER_INTERVAL=30 seconds
+    volumes:
+      - ./config/spark/spark-stream-processor:/opt/bitnami/spark/conf
+
+  spark-to-iceberg-processor:
+    build:
+      context: ./spark-to-iceberg-processor
+    container_name: spark-to-iceberg-processor
     depends_on:
       kafka:
         condition: service_healthy
@@ -151,14 +172,14 @@ services:
       - PYSPARK_PYTHON=python3
       - SPARK_LOCAL_IP=0.0.0.0
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TOPIC=iot-telemetry
+      - KAFKA_TOPIC=iot-processed-telemetry
       - KAFKA_STARTING_OFFSETS=latest
       - ICEBERG_CATALOG=iot_data
       - ICEBERG_TABLE_IDENTIFIER=iot.telemetry
-      - SPARK_STREAMING_CHECKPOINT_LOCATION=s3a://iot-data/checkpoints/telemetry
+      - SPARK_STREAMING_CHECKPOINT_LOCATION=s3a://iot-data/checkpoints/spark-to-iceberg-processor/processed-telemetry
       - SPARK_STREAMING_TRIGGER_INTERVAL=30 seconds
     volumes:
-      - ./config/spark:/opt/bitnami/spark/conf
+      - ./config/spark/spark-to-iceberg-processor:/opt/bitnami/spark/conf
 
   trino:
     image: trinodb/trino:latest

@@ -214,7 +214,7 @@ services:
       # 'data/grafana' contains DEMO dashboards configurations
       - ./data/grafana:/var/lib/grafana
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/login"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/login || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -208,6 +208,8 @@ services:
       OPENSEARCH_USE_SSL: "False"
       OPENSEARCH_VERIFY_CERTS: "False"
       OPENSEARCH_INDEX_PREFIX: iot-data
+      OPENSEARCH_MAX_BATCH_SIZE: 100
+      OPENSEARCH_FLUSH_INTERVAL_SECONDS: 5
 
   trino:
     image: trinodb/trino:latest

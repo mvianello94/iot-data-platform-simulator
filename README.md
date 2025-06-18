@@ -148,6 +148,13 @@ Password: minioadmin
 
 - UI: http://localhost:19120
 
+### OpenSearch
+
+- Dashboards: http://localhost:5601
+  For development purpose use the default admin user created using `docker-compose.yml`:
+  Username: admin
+  Password: admin
+
 ### Grafana
 
 - UI: http://localhost:3000

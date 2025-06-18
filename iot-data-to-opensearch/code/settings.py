@@ -28,7 +28,10 @@ class OpenSearchSettings(CustomBaseSettings):
     password: str | None = None
     use_ssl: bool = False
     verify_certs: bool = False
+
     index_prefix: str
+    max_batch_size: int = 100
+    flush_interval_seconds: int = 5
 
 
 class SimulatorSettings(CustomBaseSettings):

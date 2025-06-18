@@ -2,7 +2,7 @@ import logging
 
 from pyspark.sql.streaming import StreamingQueryListener
 
-logger = logging.getLogger("IoTStreamProcessor")
+logger = logging.getLogger("ProcessedKafkaToIceberg")
 
 
 class StreamingListener(StreamingQueryListener):

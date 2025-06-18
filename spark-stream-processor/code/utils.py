@@ -3,7 +3,7 @@ import logging
 from pyspark.sql import SparkSession
 from settings import SETTINGS  # import del singleton con i nuovi settings
 
-logger = logging.getLogger("IoTStreamProcessorUtils")
+logger = logging.getLogger("KafkaToKafkaProcessor")
 
 
 def get_spark_session() -> SparkSession:

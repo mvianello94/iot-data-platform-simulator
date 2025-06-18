@@ -46,6 +46,12 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    command: >
+      "
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic _connect-configs --replication-factor 1 --partitions 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic _connect-offsets --replication-factor 1 --partitions 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic _connect-status --replication-factor 1 --partitions 1
+      "
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.9.1
@@ -140,6 +146,15 @@ services:
       nofile:
         soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
         hard: 65536
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'curl -f http://localhost:9200/_cluster/health | grep -vq ''"status":"red"'' || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - opensearch-data1:/usr/share/opensearch/data # Creates volume called opensearch-data1 and mounts it to the container
 
@@ -153,6 +168,88 @@ services:
     environment:
       - 'OPENSEARCH_HOSTS=["http://opensearch-node1:9200"]'
       - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true" # disables security dashboards plugin in OpenSearch Dashboards
+
+  kafka-connect-plugin-download:
+    image: busybox:stable
+    container_name: kafka-connect-plugin-download
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./config/kafka/connect/opensearch/quickstart-opensearch.properties:/tmp/quickstart-opensearch.properties:ro
+      - kafka-connect-opensearch-plugin:/usr/share/java/kafka-connect-opensearch
+    command: >
+      sh -c "
+        wget -O /tmp/plugin.zip https://github.com/Aiven-Open/opensearch-connector-for-apache-kafka/releases/download/v3.1.1/opensearch-connector-for-apache-kafka-3.1.1.zip &&
+        unzip /tmp/plugin.zip -d /usr/share/java/kafka-connect-opensearch &&
+        rm /tmp/plugin.zip &&
+        cp /tmp/quickstart-opensearch.properties /usr/share/java/kafka-connect-opensearch/config/quickstart-opensearch.properties &&
+        echo '---- quickstart-opensearch.properties content ----' &&
+        cat /usr/share/java/kafka-connect-opensearch/config/quickstart-opensearch.properties
+      "
+
+  kafka-connect-opensearch:
+    image: confluentinc/cp-kafka-connect:7.9.1
+    container_name: kafka-connect-opensearch
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-connect-plugin-download:
+        condition: service_completed_successfully
+      opensearch-node1:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:29092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: kafka-connect
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_PLUGIN_PATH: /usr/share/java/kafka-connect-opensearch
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    volumes:
+      - kafka-connect-opensearch-plugin:/usr/share/java/kafka-connect-opensearch
+
+  kafka-connect-registrator:
+    image: curlimages/curl:latest
+    container_name: kafka-connect-registrator
+    depends_on:
+      kafka-connect-opensearch:
+        condition: service_healthy
+    volumes:
+      - ./config/kafka/connect/opensearch/opensearch-sink-config.json:/tmp/opensearch-sink-config.json:ro
+      - ./config/kafka/connect/opensearch/register-opensearch-connector.sh:/tmp/register-opensearch-connector.sh:ro
+    entrypoint: >
+      sh -c "
+        echo '⏳ Waiting for Kafka Connect REST to become ready...';
+        for i in $(seq 1 60); do
+          if curl -s http://kafka-connect-opensearch:8083/; then
+            echo '✅ Kafka Connect is up!';
+            break;
+          fi
+          echo '...not ready yet';
+          sleep 2;
+        done
+
+        echo '🚀 Registering OpenSearch sink connector...';
+        curl -s -X POST -H 'Content-Type: application/json' \
+          --data @/tmp/opensearch-sink-config.json \
+          http://kafka-connect-opensearch:8083/connectors | tee /tmp/connector-register-response.json
+
+        echo '📦 Registration complete';
+      "
 
   nessie:
     image: ghcr.io/projectnessie/nessie:latest
@@ -222,38 +319,38 @@ services:
     volumes:
       - ./config/spark/spark-to-iceberg-processor:/opt/bitnami/spark/conf
 
-  trino:
-    image: trinodb/trino:latest
-    container_name: trino
-    depends_on:
-      nessie:
-        condition: service_started
-    ports:
-      - "8082:8080"
-    volumes:
-      - ./config/trino/catalog:/etc/trino/catalog
-
-  grafana:
-    image: grafana/grafana-oss:latest
-    container_name: grafana
-    depends_on:
-      trino:
-        condition: service_started
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: trino-datasource
-      GF_INSTALL_PLUGINS: trino-datasource
-    volumes:
-      # 'data/grafana' contains DEMO dashboards configurations
-      - ./data/grafana:/var/lib/grafana
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/login || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # trino:
+  #   image: trinodb/trino:latest
+  #   container_name: trino
+  #   depends_on:
+  #     nessie:
+  #       condition: service_started
+  #   ports:
+  #     - "8082:8080"
+  #   volumes:
+  #     - ./config/trino/catalog:/etc/trino/catalog
+#
+# grafana:
+#   image: grafana/grafana-oss:latest
+#   container_name: grafana
+#   depends_on:
+#     trino:
+#       condition: service_started
+#   ports:
+#     - "3000:3000"
+#   environment:
+#     GF_SECURITY_ADMIN_USER: admin
+#     GF_SECURITY_ADMIN_PASSWORD: admin
+#     GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: trino-datasource
+#     GF_INSTALL_PLUGINS: trino-datasource
+#   volumes:
+#     # 'data/grafana' contains DEMO dashboards configurations
+#     - ./data/grafana:/var/lib/grafana
+#   healthcheck:
+#     test: ["CMD-SHELL", "curl -f http://localhost:3000/login || exit 1"]
+#     interval: 10s
+#     timeout: 5s
+#     retries: 5
 
 volumes:
   kafka_data:
@@ -261,4 +358,5 @@ volumes:
   zookeeper_log:
   minio_data:
   postgres_data:
+  kafka-connect-opensearch-plugin:
   opensearch-data1:

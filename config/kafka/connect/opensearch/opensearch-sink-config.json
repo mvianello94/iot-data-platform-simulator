@@ -1,0 +1,13 @@
+{
+  "name": "opensearch-sink-connector",
+  "config": {
+    "connector.class": "io.aiven.kafka.connect.opensearch.AivenOpenSearchSinkConnector",
+    "tasks.max": "1",
+    "topics": "iot-processed-telemetry",
+    "connection.url": "http://opensearch-node1:9200",
+    "key.ignore": "true",
+    "schema.ignore": "true",
+    "type.name": "_doc",
+    "flush.timeout.ms": "60000"
+  }
+}

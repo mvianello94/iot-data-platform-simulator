@@ -15,6 +15,7 @@ class KafkaSettings(CustomBaseSettings):
     )
 
     bootstrap_servers: str
+    group_id: str
     topic: str
     starting_offsets: str = "latest"
 

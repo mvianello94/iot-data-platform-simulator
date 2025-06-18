@@ -157,6 +157,7 @@ services:
       # SPARK_LOCAL_IP: 0.0.0.0
       SPARK_BLOCKMANAGER_PORT: 7079
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_GROUP_ID: 1
       KAFKA_RAW_DATA_TOPIC: iot-raw-telemetry
       KAFKA_PROCESSED_DATA_TOPIC: iot-processed-telemetry
       KAFKA_STARTING_OFFSETS: latest
@@ -179,6 +180,7 @@ services:
       # SPARK_LOCAL_IP: 0.0.0.0
       SPARK_BLOCKMANAGER_PORT: 7079
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_GROUP_ID: 1
       KAFKA_TOPIC: iot-processed-telemetry
       KAFKA_STARTING_OFFSETS: latest
       ICEBERG_CATALOG: iot_data
@@ -187,6 +189,25 @@ services:
       SPARK_STREAMING_TRIGGER_INTERVAL: 30 seconds
     volumes:
       - ./config/spark/spark-to-iceberg-processor:/opt/bitnami/spark/conf
+
+  iot-data-to-opensearch:
+    build:
+      context: ./iot-data-to-opensearch
+    container_name: iot-data-to-opensearch
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: iot-raw-telemetry
+      KAFKA_GROUP_ID: 2
+      OPENSEARCH_HOST: opensearch-node1
+      OPENSEARCH_PORT: 9200
+      # OPENSEARCH_USERNAME: admin
+      # OPENSEARCH_PASSWORD: admin
+      OPENSEARCH_USE_SSL: "False"
+      OPENSEARCH_VERIFY_CERTS: "False"
+      OPENSEARCH_INDEX_PREFIX: iot-data
 
   trino:
     image: trinodb/trino:latest

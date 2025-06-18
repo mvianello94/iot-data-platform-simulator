@@ -45,6 +45,7 @@ def main() -> None:
         df = (
             spark.readStream.format("kafka")
             .option("kafka.bootstrap.servers", SETTINGS.kafka.bootstrap_servers)
+            .option("kafka.group.id", SETTINGS.kafka.group_id)
             .option("subscribe", SETTINGS.kafka.raw_data_topic)
             .option("startingOffsets", SETTINGS.kafka.starting_offsets)
             .load()

@@ -46,12 +46,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
-    command: >
-      "
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic _connect-configs --replication-factor 1 --partitions 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic _connect-offsets --replication-factor 1 --partitions 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic _connect-status --replication-factor 1 --partitions 1
-      "
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.9.1
@@ -204,9 +198,9 @@ services:
       CONNECT_BOOTSTRAP_SERVERS: kafka:29092
       CONNECT_REST_PORT: 8083
       CONNECT_GROUP_ID: kafka-connect
-      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
-      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
-      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
+      CONNECT_CONFIG_STORAGE_TOPIC: os-connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: os-connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: os-connect-status
       CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter

@@ -199,7 +199,7 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_TOPIC: iot-raw-telemetry
+      KAFKA_TOPIC: iot-processed-telemetry
       KAFKA_GROUP_ID: 2
       OPENSEARCH_HOST: opensearch-node1
       OPENSEARCH_PORT: 9200

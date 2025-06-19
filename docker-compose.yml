@@ -106,12 +106,45 @@ services:
       nofile:
         soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
         hard: 65536
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fs http://localhost:9200/_cluster/health | grep -q '\"status\":\"yellow\"\\|\"status\":\"green\"'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     volumes:
       - opensearch-data1:/usr/share/opensearch/data # Creates volume called opensearch-data1 and mounts it to the container
+
+  opensearch-init:
+    image: curlimages/curl:latest
+    depends_on:
+      opensearch-node1:
+        condition: service_healthy
+    volumes:
+      - ./config/opensearch/iot_data_template.json:/template.json
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo 'Waiting for OpenSearch...';
+        until curl -s http://opensearch-node1:9200; do sleep 1; done;
+        echo 'OpenSearch is up!';
+        curl -X PUT http://opensearch-node1:9200/_index_template/iot_processed_template \
+          -H 'Content-Type: application/json' \
+          --data-binary '@/template.json';
+        echo 'Template successfully loaded from file';
+        sleep 5;
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:latest
     container_name: opensearch-dashboards
+    depends_on:
+      opensearch-node1:
+        condition: service_healthy
     ports:
       - 5601:5601
     expose:
@@ -154,7 +187,6 @@ services:
         condition: service_healthy
     environment:
       PYSPARK_PYTHON: python3
-      # SPARK_LOCAL_IP: 0.0.0.0
       SPARK_BLOCKMANAGER_PORT: 7079
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_GROUP_ID: 1
@@ -162,7 +194,7 @@ services:
       KAFKA_PROCESSED_DATA_TOPIC: iot-processed-telemetry
       KAFKA_STARTING_OFFSETS: latest
       SPARK_STREAMING_CHECKPOINT_LOCATION: s3a://iot-data/checkpoints/spark-stream-processor/raw-telemetry
-      SPARK_STREAMING_TRIGGER_INTERVAL: 30 seconds
+      # SPARK_STREAMING_TRIGGER_INTERVAL: 30 seconds
     volumes:
       - ./config/spark/spark-stream-processor:/opt/bitnami/spark/conf
 
@@ -196,6 +228,8 @@ services:
     container_name: iot-data-to-opensearch
     depends_on:
       kafka:
+        condition: service_healthy
+      opensearch-node1:
         condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092

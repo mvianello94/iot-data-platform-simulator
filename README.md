@@ -1,59 +1,66 @@
 # IoT Data Platform Simulator 🚀📡
 
-This project simulates a scalable IoT data platform for real-time streaming analytics. It features a Python-based data generator producing synthetic IoT sensor data, ingested via Apache Kafka and processed using Apache Spark Structured Streaming. The processed data is stored in Apache Iceberg format on an S3-compatible MinIO bucket and explored via Apache Superset. Additionally, Apache Flink is included for potential use in real-time alerting and advanced stream processing scenarios. All components are containerized using Docker Compose, making the platform easy to run, extend, and experiment with.
+This project simulates a scalable IoT data platform for real-time streaming analytics. It includes:
 
-<br>
+- A Python-based generator of synthetic IoT sensor data
+- Apache Kafka for Data Ingestion
+- Apache Spark Structured Streaming and Python for processing
+- Apache Iceberg on MinIO as the Data Lake
+- OpenSearch for indexing and search
+- Grafana for data visualization
+- Optional: Apache Flink for real-time alerting and advanced stream processing
 
-## Cloud-Ready Architecture Mapping
+Everything is orchestrated using Docker Compose to be easily run locally while reflecting a cloud-native architecture.
 
-This setup demonstrates a portable, modular data platform built with Apache Spark, Apache Flink, Kafka, Iceberg, and Nessie. It is designed to run locally via Docker, but structured in a way that mirrors a cloud-native architecture.
+---
 
-### Local-to-Cloud Service Mapping
+## 🧭 Cloud-Ready Architecture Mapping
 
-| Component             | Local / Dev (Docker)           | Cloud-Ready Equivalent                        |
-| --------------------- | ------------------------------ | --------------------------------------------- |
-| **Data Catalog**      | Hadoop Catalog                 | AWS Glue / Lake Formation                     |
-| **Object Storage**    | MinIO                          | Amazon S3 / Google Cloud Storage / Azure Blob |
-| **Batch Processing**  | Apache Spark (Docker)          | AWS EMR / Google Dataproc / Azure Synapse     |
-| **Stream Processing** | Apache Flink (Docker, PyFlink) | Flink on Kinesis / Dataflow / Event Hubs      |
-| **Messaging**         | Apache Kafka (Docker)          | MSK / PubSub / Azure Event Hubs               |
-| **SQL Engine**        | Spark SQL / DuckDB             | Athena / BigQuery / Synapse SQL               |
-| **BI / Dashboards**   | Apache Superset                | AWS QuickSight / Looker / Power BI            |
+This local setup emulates a cloud-native deployment, with swappable components for cloud-managed equivalents.
 
-### Why This Matters
+### Local ↔ Cloud Service Mapping
 
-By structuring the platform with these components and clear modular boundaries, we demonstrate that:
+| Category          | Local (Docker)             | Cloud-Ready Equivalent                        |
+| ----------------- | -------------------------- | --------------------------------------------- |
+| Data Catalog      | Nessie (REST API)          | AWS Glue / Lake Formation                     |
+| Object Storage    | MinIO                      | Amazon S3 / Google Cloud Storage / Azure Blob |
+| Batch Processing  | Apache Spark               | EMR / Dataproc / Azure Synapse                |
+| Stream Processing | Apache Flink (optional)    | Flink on Kinesis / Dataflow / Event Hubs      |
+| Messaging         | Apache Kafka               | MSK / PubSub / Azure Event Hubs               |
+| Data Lake Format  | Apache Iceberg             | Iceberg on S3/Blob with Glue/Hive             |
+| Search & Indexing | OpenSearch                 | OpenSearch / Elasticsearch                    |
+| SQL Engine        | Spark SQL / Trino / DuckDB | Athena / BigQuery / Synapse SQL               |
+| BI & Dashboards   | Grafana                    | QuickSight / Looker / Power BI                |
 
-- **The platform is cloud-agnostic**: it runs anywhere, changes only the underlying services.
-- **Code and pipeline logic are reusable** between local/dev and production environments.
-- **Real-world data ops features** (e.g., data versioning, branching, rollback) are built-in via Iceberg + Nessie.
+---
 
-<br>
+## 📁 Project Structure
 
-## Project Structure
-
-```graphql
+```plaintext
 iot-data-platform-simulator/
 │
 ├── docker-compose.yml
+├── Makefile
 │
-├── iot-data-generator/        # IoT event generator
-│   ├── generator.py          # Sends random JSON telemetry to Kafka
+├── iot-data-generator/          # IoT data generator (Python)
+│   ├── generator.py             # Sends random JSON to Kafka
 │   └── Dockerfile
 │
-├── spark-stream-processor/   # Spark Structured Streaming job
-│   ├── main.py               # Reads from Kafka, writes to Delta Lake
+├── spark-stream-processor/      # Spark Structured Streaming jobs
+│   ├── ingest_transform.py      # From Kafka 'iot-telemetry' to 'iot-transformed'
+│   ├── to_iceberg.py            # From 'iot-transformed' to Iceberg
+│   ├── to_opensearch.py         # From 'iot-transformed' to OpenSearch
 │   └── Dockerfile
 ```
 
-<br>
+---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/iot-data-platform-simulator.git
+git clone https://github.com/mvianello94/iot-data-platform-simulator.git
 cd iot-data-platform-simulator
 ```
 
@@ -69,108 +76,135 @@ make build
 make up
 ```
 
-### 4. Access the services
+### 4. SignIn into Grafana
 
-MinIO Console: http://localhost:9001
-User: minioadmin | Password: minioadmin
-
-Superset UI: http://localhost:8088
-User: admin | Password: admin123!
-
-<br>
-
-## Makefile Commands
-
-This project includes a `Makefile` to simplify common Docker Compose tasks.
-
-### Available Commands
-
-| Command                          | Description                                       |
-| -------------------------------- | ------------------------------------------------- |
-| `make up`                        | Start all services in detached mode               |
-| `make down`                      | Stop all running containers                       |
-| `make build`                     | Build/rebuild all services                        |
-| `make rebuild`                   | Rebuild and start all services + (`build` + `up`) |
-| `make logs`                      | Tail logs from all services                       |
-| `make logs SERVICE=service_name` | Tail logs from the specified service              |
-| `make restart`                   | Restart the environment (`down` + `up`)           |
-| `make clean`                     | Stop everything and remove volumes + orphans      |
-
-### Typical Workflow
-
-```bash
-make build      # Build containers (only needed after code changes)
-make up         # Start the environment
-make logs       # See what’s happening
-make clean      # Tear down everything and clean volumes
-```
-
-### Good to Know
-
-- `make clean` will **delete all volumes**, including MinIO data.
-- `make restart` is useful for a quick refresh without losing volumes.
-- The `Makefile` assumes Docker Compose v2 (`docker compose`, not `docker-compose`).
-
-<br>
-
-## Technical Details
-
-### Kafka
-
-Topic: iot-telemetry
-
-Message format: JSON with device_id, temperature, humidity, ..., timestamp
-
-### Spark Structured Streaming
-
-Consumes Kafka topic as a stream
-
-Parses JSON messages using schema
-
-Writes data to Apache Iceberg Table s3a://iot-data/telemetry
-
-Uses checkpointing for fault tolerance
-
-### MinIO
-
-S3-compatible object store used as a local data lake:
-
-Bucket: iot-data
-
-- API Endpoint: http://localhost:9000
-- UI: http://localhost:9001
-
-For development purpose use the default admin user:
-Username: minioadmin
-Password: minioadmin
-
-### Nessie
-
-- UI: http://localhost:19120
-
-### OpenSearch
-
-- Dashboards: http://localhost:5601
-  For development purpose use the default admin user created using `docker-compose.yml`:
-  Username: admin
-  Password: admin
-
-### Grafana
-
-- UI: http://localhost:3000
-
-For development purpose use the default admin user created using `docker-compose.yml`:
+[http://localhost:3000](http://localhost:3000)
 Username: admin
 Password: admin
 
-<br>
+### 5. Visualize and analyze IoT data
 
-## License
+Compare different datasources on pre-built dashboards:
+
+- IoT Data (Iceberg DataSource)
+- IoT Data (OpenSearch DataSource)
+
+### 5. Clean
+
+```bash
+make clean
+```
+
+---
+
+## 🌐 Access Services
+
+| Service        | URL                                              | Username / Password         |
+| -------------- | ------------------------------------------------ | --------------------------- |
+| **MinIO**      | [http://localhost:9001](http://localhost:9001)   | `minioadmin` / `minioadmin` |
+| **OpenSearch** | [http://localhost:5601](http://localhost:5601)   | `admin` / `admin`           |
+| **Grafana**    | [http://localhost:3000](http://localhost:3000)   | `admin` / `admin`           |
+| **Nessie UI**  | [http://localhost:19120](http://localhost:19120) | N/A                         |
+
+---
+
+## 🛠️ Makefile Commands
+
+| Command                             | Description                                  |
+| ----------------------------------- | -------------------------------------------- |
+| `make up`                           | Start all services                           |
+| `make up SERVICE=service_name`      | Start the specified service                  |
+| `make down`                         | Stop all running containers                  |
+| `make down SERVICE=service_name`    | Stop the specified service                   |
+| `make build`                        | Build/rebuild all services                   |
+| `make build SERVICE=service_name`   | Build/rebuild the specified service          |
+| `make rebuild`                      | Rebuild and start all services               |
+| `make rebuild SERVICE=service_name` | Rebuild and start the specified service      |
+| `make logs`                         | Tail logs from all services                  |
+| `make logs SERVICE=service_name`    | Tail logs from the specified service         |
+| `make restart`                      | Restart the environment                      |
+| `make clean`                        | Stop everything and remove volumes + orphans |
+
+📌 **Note**: `make clean` will **delete all volumes**, including MinIO data.
+
+---
+
+## ⚙️ Technical Overview
+
+### Kafka
+
+- Topics:
+
+  - `iot-raw-telemetry` (raw events)
+  - `iot-processed-telemetry` (transformed events)
+
+- RAW Data Format: JSON with fields like:
+
+```json
+{
+  "device_id": "test",
+  "temperature": 21,
+  "humidity": 80,
+  "timestamp": "...",
+  ...
+}
+```
+
+- Processed Data Format: JSON with fixed fields:
+
+```json
+{
+  "device_id": "test",
+  "event_time": "...",
+  "variable_id": "temperature",
+  "string_val": "21",
+  "double_val": 21.0
+}
+```
+
+### Kafka Consumers
+
+Three separate Kafka consumers:
+
+1. `spark-stream-processor`: Spark Job reads from `iot-raw-telemetry`, transforms events, writes to `iot-processed-telemetry` (using Spark Structured Streaming)
+2. `spark-to-iceberg-processor`: Spark Job reads from `iot-processed-telemetry`, writes to Iceberg on `s3a://iot-data/warehouse` (using Spark Structured Streaming)
+3. `iot-data-to-opensearch`: Simple Python script reads from `iot-processed-telemetry`, indexes into OpenSearch
+
+Checkpointing is used in all jobs for fault tolerance.
+
+### MinIO
+
+Acts as the local S3-compatible data lake
+
+- Bucket: `iot-data`
+- API: `http://localhost:9000`
+- UI: `http://localhost:9001`
+- Default user: `minioadmin` / `minioadmin`
+
+### Nessie (REST API)
+
+Catalog API: enables branching, versioning, rollback for Iceberg tables
+
+### OpenSearch
+
+Used for real-time indexing and full-text queries
+
+### Grafana
+
+- Connected to Trino for querying Iceberg tables
+- Also visualizes OpenSearch data
+- Dashboards configurable to explore sensor trends
+
+---
+
+## 📜 License
 
 MIT License — use it, fork it, break it, improve it.
 
-<br>
+---
 
-## Author
+## 👨‍💻 Author
 
-Manuel Vianello – Cloud Architect, Software Engineer, creative problem solver.
+**Manuel Vianello**
+Software Engineer • Cloud Architect • Creative Problem Solver
+[GitHub](https://github.com/mvianello94) — [LinkedIn](https://linkedin.com/in/manuel-vianello-339626155)

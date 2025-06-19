@@ -1,0 +1,25 @@
+{
+  "index_patterns": ["iot-data-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1
+    },
+    "mappings": {
+      "properties": {
+        "device_id": { "type": "keyword" },
+        "event_time": {
+          "type": "date",
+          "format": "strict_date_optional_time||epoch_millis"
+        },
+        "variable_id": { "type": "keyword" },
+        "string_val": { "type": "keyword", "null_value": "null" },
+        "double_val": { "type": "double" }
+      }
+    }
+  },
+  "priority": 1,
+  "version": 1,
+  "_meta": {
+    "description": "Template per dati IoT trasformati"
+  }
+}

@@ -97,12 +97,13 @@ make clean
 
 ## 🌐 Access Services
 
-| Service        | URL                                              | Username / Password         |
-| -------------- | ------------------------------------------------ | --------------------------- |
-| **MinIO**      | [http://localhost:9001](http://localhost:9001)   | `minioadmin` / `minioadmin` |
-| **OpenSearch** | [http://localhost:5601](http://localhost:5601)   | `admin` / `admin`           |
-| **Grafana**    | [http://localhost:3000](http://localhost:3000)   | `admin` / `admin`           |
-| **Nessie UI**  | [http://localhost:19120](http://localhost:19120) | N/A                         |
+| Service                   | URL                                              | Username / Password         |
+| ------------------------- | ------------------------------------------------ | --------------------------- |
+| **MinIO**                 | [http://localhost:9001](http://localhost:9001)   | `minioadmin` / `minioadmin` |
+| **Postgres**              | [http://localhost:5432](http://localhost:5432)   | `admin` / `admin`           |
+| **OpenSearch Dashboards** | [http://localhost:5601](http://localhost:5601)   | N/A                         |
+| **Grafana**               | [http://localhost:3000](http://localhost:3000)   | `admin` / `admin`           |
+| **Nessie UI**             | [http://localhost:19120](http://localhost:19120) | N/A                         |
 
 ---
 
@@ -175,9 +176,7 @@ Checkpointing is used in all jobs for fault tolerance.
 Acts as the local S3-compatible data lake
 
 - Bucket: `iot-data`
-- API: `http://localhost:9000`
-- UI: `http://localhost:9001`
-- Default user: `minioadmin` / `minioadmin`
+- Data Lake: `warehouse`
 
 ### Nessie (REST API)
 

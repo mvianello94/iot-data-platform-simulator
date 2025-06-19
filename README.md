@@ -8,7 +8,6 @@ This project simulates a scalable IoT data platform for real-time streaming anal
 - Apache Iceberg on MinIO as the Data Lake
 - OpenSearch for indexing and search
 - Grafana for data visualization
-- Optional: Apache Flink for real-time alerting and advanced stream processing
 
 Everything is orchestrated using Docker Compose to be easily run locally while reflecting a cloud-native architecture.
 
@@ -25,7 +24,6 @@ This local setup emulates a cloud-native deployment, with swappable components f
 | Data Catalog      | Nessie (REST API)          | AWS Glue / Lake Formation                     |
 | Object Storage    | MinIO                      | Amazon S3 / Google Cloud Storage / Azure Blob |
 | Batch Processing  | Apache Spark               | EMR / Dataproc / Azure Synapse                |
-| Stream Processing | Apache Flink (optional)    | Flink on Kinesis / Dataflow / Event Hubs      |
 | Messaging         | Apache Kafka               | MSK / PubSub / Azure Event Hubs               |
 | Data Lake Format  | Apache Iceberg             | Iceberg on S3/Blob with Glue/Hive             |
 | Search & Indexing | OpenSearch                 | OpenSearch / Elasticsearch                    |

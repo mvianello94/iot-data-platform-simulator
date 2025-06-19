@@ -204,4 +204,5 @@ MIT License — use it, fork it, break it, improve it.
 
 **Manuel Vianello**
 Software Engineer • Cloud Architect • Creative Problem Solver
+<br>
 [GitHub](https://github.com/mvianello94) — [LinkedIn](https://linkedin.com/in/manuel-vianello-339626155)

@@ -114,8 +114,8 @@ services:
         ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 9
+      start_period: 30s
     volumes:
       - opensearch-data1:/usr/share/opensearch/data # Creates volume called opensearch-data1 and mounts it to the container
 
